@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookings - OnCons Expert</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html">Dashboard</a><a href="/expert/bookings.html" class="active">Upcoming</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a><a href="/expert/settings.html">Settings</a></aside>
+<main class="dash-main"><h1>Bookings</h1><section class="booking-section"><div class="section-line"><div><p class="section-tag">Needs action</p><h2>Upcoming Requests</h2></div></div><div id="r" class="booking-list"></div></section><section class="booking-section"><div class="section-line"><div><p class="section-tag">Past consultations</p><h2>History</h2></div></div><div id="history" class="booking-list"></div></section></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+<script>
+async function loadBookings(){
+  const b=await api('/expert/bookings').catch(()=>[]);
+  const upcoming=b.filter(x=>!['completed','cancelled'].includes(x.status));
+  const done=b.filter(x=>['completed','cancelled'].includes(x.status));
+  r.innerHTML=upcoming.length?upcoming.map(x=>`<div class="consult-card">
+    <div><strong>${x.user_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
+    <div class="action-row">${bookingActions(x)}</div>
+  </div>`).join(''):'<div class="empty-state">No upcoming requests.</div>';
+  history.innerHTML=done.length?done.map(x=>`<div class="consult-card history-card">
+    <div><strong>${x.user_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
+    <span class="status-pill ${x.status==='cancelled'?'rejected':''}">${x.status}</span>
+  </div>`).join(''):'<div class="empty-state">Completed and rejected consultations will appear here.</div>';
+}
+loadBookings();
+setInterval(loadBookings,5000);
+function bookingActions(x){
+  if(x.status==='requested') return `<button class="btn btn-primary" onclick="decision(${x.id},'accept')">Accept</button><button class="btn btn-ghost" onclick="decision(${x.id},'reject')">Reject</button>`;
+  if(x.status==='confirmed') return `<a class="btn btn-primary" href="${x.meeting_url}">Room</a>`;
+  if(x.status==='cancelled') return `<span class="status-pill rejected">Rejected</span>`;
+  return `<span class="status-pill">${x.status}</span>`;
+}
+async function decision(id,decision){await api('/expert/bookings/'+id+'/decision',{method:'POST',body:JSON.stringify({decision})});await loadBookings()}
+</script>
+</body></html>

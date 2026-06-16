@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookings - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html">Overview</a><a href="/dashboard/bookings.html" class="active">Bookings</a><a href="/dashboard/chat.html">AI Chat Bot</a><a href="/dashboard/profile.html">Profile</a><a href="/dashboard/notifications.html">Notifications</a><a href="/dashboard/settings.html">Settings</a></aside>
+<main class="dash-main">
+<h1>My Bookings</h1>
+<section class="booking-section"><div class="section-line"><div><p class="section-tag">Active consultations</p><h2>Upcoming</h2></div></div><div id="upcomingRows" class="booking-list"></div></section>
+<section class="booking-section"><div class="section-line"><div><p class="section-tag">Past consultations</p><h2>History</h2></div></div><div id="historyRows" class="booking-list"></div></section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+const activeStatuses=['requested','confirmed'];
+function bookingModeAction(x){
+  if(x.status==='requested') return '<span class="status-pill">Waiting for consultant</span>';
+  if(x.status!=='confirmed') return `<span class="status-pill ${x.status==='cancelled'?'rejected':''}">${x.status}</span>`;
+  const mode=(x.mode||'video').toLowerCase();
+  const label=mode==='audio'?'Join audio room':mode==='chat'?'Open chat':'Join video room';
+  return `<a class="btn btn-primary" href="${x.meeting_url}">${label}</a>`;
+}
+(async()=>{
+  const b=await api('/me/bookings');
+  const upcoming=b.filter(x=>activeStatuses.includes(x.status));
+  const history=b.filter(x=>['completed','cancelled'].includes(x.status));
+  upcomingRows.innerHTML=upcoming.length?upcoming.map(x=>`<div class="consult-card">
+    <div><strong>${x.expert_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
+    <div class="action-row">${bookingModeAction(x)}</div>
+  </div>`).join(''):'<div class="empty-state">No bookings yet. Book a consultant to unlock chat, call, and video room.</div>';
+  historyRows.innerHTML=history.length?history.map(x=>`<div class="consult-card history-card">
+    <div><strong>${x.expert_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
+    <span class="status-pill ${x.status==='cancelled'?'rejected':''}">${x.status}</span>
+  </div>`).join(''):'<div class="empty-state">Completed and rejected bookings will appear here.</div>';
+})();
+</script>
+</body></html>

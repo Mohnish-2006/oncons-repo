@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payments — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="">Overview</a><a href="/dashboard/bookings.html" class="">Bookings</a><a href="/dashboard/payments.html" class="active">Payments</a><a href="/dashboard/subscription.html" class="">Subscription</a><a href="/dashboard/profile.html" class="">Profile</a><a href="/dashboard/chat.html" class="">AI Chat</a><a href="/dashboard/notifications.html" class="">Notifications</a></aside>
+<main class="dash-main">
+<h1>Payment History</h1><table class="tbl"><thead><tr><th>Date</th><th>For</th><th>Amount</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("".replace("user",""))||null;</script><script>(async()=>{const p=await api('/me/payments');
+document.getElementById('rows').innerHTML=p.map(x=>`<tr><td>${new Date(x.created_at).toLocaleDateString()}</td><td>${x.description}</td><td>₹${x.amount}</td><td>${x.status}</td></tr>`).join('')||'<tr><td colspan=4>No payments yet.</td></tr>'})();</script>
+</body></html>

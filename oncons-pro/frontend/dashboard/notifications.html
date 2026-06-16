@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notifications — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="">Overview</a><a href="/dashboard/bookings.html" class="">Bookings</a><a href="/dashboard/chat.html" class="">AI Chat Bot</a><a href="/dashboard/profile.html" class="">Profile</a><a href="/dashboard/notifications.html" class="active">Notifications</a><a href="/dashboard/settings.html">Settings</a></aside>
+<main class="dash-main">
+<h1>Notifications</h1><div id="list"></div>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("".replace("user",""))||null;</script><script>(async()=>{const n=await api('/me/notifications').catch(()=>[]);
+document.getElementById('list').innerHTML=n.map(x=>`<div class="card" style="margin-bottom:10px"><strong>${x.title}</strong><p>${x.body}</p></div>`).join('')||'<p>No notifications.</p>'})();</script>
+</body></html>

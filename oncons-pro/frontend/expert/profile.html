@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Profile - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html">Dashboard</a><a href="/expert/bookings.html">Upcoming</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html" class="active">Profile</a><a href="/expert/settings.html">Settings</a></aside>
+<main class="dash-main">
+<h1>Admin Profile</h1>
+<div class="profile-head"><div id="avatar" class="avatar-xl"></div><div><h2 id="displayName"></h2><p id="displayMeta"></p><button class="btn btn-ghost" onclick="editProfile.classList.toggle('hidden')">Edit profile</button></div></div>
+<form id="editProfile" class="form hidden" onsubmit="sv(event)" style="max-width:720px;margin-top:22px">
+<div class="grid-2"><label>Name<input name="name" id="n"></label><label>Phone<input name="phone" id="ph"></label></div>
+<label>Profile picture<input type="file" id="photo" accept="image/*"></label>
+<div class="grid-2"><label>Category<input name="category" id="c"></label><label>Years experience<input name="years_experience" type="number" id="y"></label></div>
+<div class="grid-2"><label>Fee (INR)<input name="fee" type="number" id="fe"></label><label>Portfolio / performance link<input name="portfolio_url" id="portfolio"></label></div>
+<label>Bio<textarea name="bio" id="b" rows="4"></textarea></label>
+<button class="btn btn-primary">Save profile</button><div id="m"></div>
+</form>
+<section class="card" style="margin-top:22px;max-width:720px">
+  <h2>Verification proof</h2>
+  <div id="proofBox"></div>
+</section>
+<section class="card" style="margin-top:22px;max-width:720px">
+  <h2>Reviews and ratings</h2>
+  <div id="reviewBox" class="booking-list"></div>
+</section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+<script>
+async function fileData(input){const f=input.files&&input.files[0];if(!f)return '';return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+async function load(){
+  const me=await api('/expert/me');
+  n.value=me.name||''; ph.value=me.phone||''; c.value=me.category||''; y.value=me.years_experience||''; fe.value=me.fee||''; b.value=me.bio||''; portfolio.value=me.portfolio_url||'';
+  displayName.textContent=me.name||'Admin';
+  displayMeta.textContent=`${me.category||'Consultant'} - ${me.years_experience||0} years - ${me.rating||0} star`;
+  avatar.innerHTML=me.profile_photo_url?`<img src="${me.profile_photo_url}" alt="${me.name}">`:(me.name||'A').slice(0,1);
+  proofBox.innerHTML=`<p><strong>Certificate required:</strong> ${me.certificate_required?'Yes':'No'}</p>
+    <p><strong>Certificate status:</strong> ${me.certificate_required?(me.certificate_verified?'Verified':'Pending'):'Not required'}</p>
+    <p><strong>Portfolio:</strong> ${me.portfolio_url?`<a href="${me.portfolio_url}" target="_blank" rel="noopener">Open portfolio</a>`:'Not added'}</p>`;
+  const reviews=await api('/expert/reviews').catch(()=>[]);
+  reviewBox.innerHTML=reviews.length?reviews.map(r=>`<div class="review-mini"><strong>${r.user_name}</strong><span>${r.rating} star</span><p>${r.comment}</p></div>`).join(''):'<div class="empty-state">No feedback submitted yet.</div>';
+}
+load();
+async function sv(e){
+  e.preventDefault();
+  const payload=Object.fromEntries(new FormData(e.target));
+  const pic=await fileData(photo);
+  if(pic){payload.profile_photo_url=pic;payload.avatar_url=pic}
+  try{await api('/expert/me',{method:'PATCH',body:JSON.stringify(payload)});m.innerHTML='<div class="alert alert-ok">Saved.</div>';load()}
+  catch(err){m.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+</script>
+</body></html>

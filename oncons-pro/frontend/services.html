@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Services - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+<main class="page">
+  <p class="section-tag">Consultation categories</p>
+  <h1>Choose a service</h1>
+  <p>Pick a domain and OnCons will show matching consultants registered under that exact category.</p>
+  <div id="serviceGrid" class="service-grid"></div>
+</main>
+<script src="/assets/js/shared.js"></script>
+<script>
+const services=[
+  ['Doctor','Medical symptoms and health guidance'],['Psychiatrist','Medication and mental health care'],['Therapist','Stress, anxiety, emotional support'],
+  ['Lawyer','Legal notice, contracts, disputes'],['Financial Advisor','Tax, loans, investments'],['Plumber','Water leaks and pipe issues'],
+  ['Mechanic','Car, bike, engine and brake issues'],['Electrician','TV, fan, socket, wiring problems'],['Tutor','Homework, exams, study help'],
+  ['Fitness Trainer','Muscle building, strength, weight gain'],['Nutritionist','Diet plans and healthy weight goals'],['Astrologer','Astrology consultation'],
+  ['Career Coach','Resume, job, interview guidance'],['Relationship Counselor','Relationship and family guidance'],['Interior Designer','Home and room design'],
+  ['Architect','Building planning and design'],['Freelance Consultant','General consulting']
+];
+serviceGrid.innerHTML=services.map(([cat,desc])=>`<a class="service-card" href="/experts.html?cat=${encodeURIComponent(cat)}">
+  <span>${cat.slice(0,1)}</span><strong>${cat}</strong><p>${desc}</p><em>Find consultants</em>
+</a>`).join('');
+</script>
+</body></html>

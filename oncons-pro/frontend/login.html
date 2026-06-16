@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body data-no-chrome="true">
+
+<main class="login-screen">
+  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home">← Home</button>
+  <section class="login-panel">
+    <div class="login-brand">On<span>Cons</span></div>
+    <p class="section-tag" id="loginTag">Secure sign in</p>
+    <h1 id="loginTitle">Welcome back</h1>
+    <p class="login-copy" id="loginCopy">Sign in to book experts, pay for sessions, and manage your consultations.</p>
+    <div class="social-login" id="socialBox">
+      <button class="btn btn-ghost" type="button" onclick="oauthLogin('google')">Continue with Google</button>
+      <button class="btn btn-ghost" type="button" onclick="oauthLogin('apple')">Continue with Apple</button>
+    </div>
+    <form class="form" onsubmit="login(event)">
+      <label>Email<input required type="email" name="email" autocomplete="email"></label>
+      <label>Password<input required type="password" name="password" autocomplete="current-password"></label>
+      <button class="btn btn-primary">Sign in</button>
+      <a href="/forgot-password.html" style="text-align:center;color:var(--teal);font-size:.85rem">Forgot password?</a>
+      <div id="msg"></div>
+      <p style="text-align:center;font-size:.85rem" id="registerHint">New here? <a href="/register.html" style="color:var(--teal)">Get started</a></p>
+    </form>
+  </section>
+</main>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+async function login(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+try{const r=await api('/auth/login',{method:'POST',body:JSON.stringify(f)});
+  if(expectedRole==='consultant' && r.user.role!=='expert' && r.user.role!=='admin') throw new Error('This is the consultant login. Please use a consultant account.');
+  if(expectedRole==='user' && (r.user.role==='expert'||r.user.role==='admin')) throw new Error('This is the user login. Please use consultant login.');
+  tokenSet(r.access_token);userSet(r.user);location.href=(r.user.role==='expert'||r.user.role==='admin')?'/expert/dashboard.html':'/dashboard/index.html';}
+catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}
+async function oauthLogin(provider){
+  if(provider==='apple'){
+    document.getElementById('msg').innerHTML='<div class="alert alert-error">Apple Sign in needs Apple Developer credentials. Use email/password for this demo.</div>';
+    return;
+  }
+  try{
+    const r=await api('/auth/google');
+    location.href=r.url;
+  }catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+const expectedRole=new URLSearchParams(location.search).get('role')==='consultant'?'consultant':'user';
+if(expectedRole==='consultant'){
+  loginTag.textContent='Consultant sign in';
+  loginTitle.textContent='Consultant dashboard';
+  loginCopy.textContent='Sign in to manage requests, earnings, availability, profile, and consultation rooms.';
+  socialBox.classList.add('hidden');
+  registerHint.innerHTML='New consultant? <a href="/register.html" style="color:var(--teal)">Register as consultant</a>';
+}else{
+  loginTag.textContent='User sign in';
+}
+</script>
+</body></html>

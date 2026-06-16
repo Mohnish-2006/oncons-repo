@@ -1,0 +1,356 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultation Room - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side" id="roomSide"><a href="/dashboard/index.html">Overview</a><a href="/dashboard/bookings.html" class="active">Bookings</a><a href="/dashboard/chat.html">AI Chat Bot</a><a href="/dashboard/profile.html">Profile</a><a href="/dashboard/notifications.html">Notifications</a><a href="/dashboard/settings.html">Settings</a></aside>
+<main class="dash-main">
+  <div class="room-head">
+    <div><p class="section-tag">Secure website room</p><h1 id="title">Consultation</h1><p id="meta"></p></div>
+    <div class="action-row" id="roomActions"></div>
+  </div>
+  <section id="participants" class="grid-2" style="margin-bottom:16px"></section>
+  <section class="call-stage">
+    <div class="meet-topbar">
+      <strong>OnCons Meet</strong>
+      <span id="meetStatus">Private consultation room</span>
+    </div>
+    <div class="meet-grid" id="meetGrid">
+      <div class="meet-tile remote">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="meet-placeholder" id="remotePlaceholder">Waiting for the other person...</div>
+        <span id="remoteName">Participant</span>
+      </div>
+      <div class="meet-tile local">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="meet-placeholder" id="localPlaceholder">Your camera preview</div>
+        <span>You</span>
+      </div>
+    </div>
+    <div id="callState" class="call-state">Click Video call or Audio call to start from this website.</div>
+    <div id="callTimer" class="call-timer hidden">05:00</div>
+    <div class="meet-controls">
+      <button type="button" onclick="toggleMic()" id="micBtn">Mic on</button>
+      <button type="button" onclick="toggleCam()" id="camBtn">Camera on</button>
+      <button type="button" class="danger" onclick="endCall()">End</button>
+    </div>
+  </section>
+  <div id="timeModal" class="time-modal hidden">
+    <div class="time-card">
+      <h2>Session time ended</h2>
+      <p>Your 5 minute user session is over. Select an add-on plan to continue. Consultant side stays free and waits until payment is verified.</p>
+      <div id="planGrid" class="plan-grid"></div>
+      <div id="timePayBox"></div>
+      <button class="btn btn-ghost" onclick="closeTimeModal()">Close</button>
+    </div>
+  </div>
+  <div id="feedbackModal" class="time-modal hidden">
+    <form class="time-card feedback-card" onsubmit="submitFeedback(event)">
+      <p class="section-tag">Consultation completed</p>
+      <h2>How was your session?</h2>
+      <p>Your review helps other users choose the right consultant. Please submit feedback before leaving this page.</p>
+      <div class="rating-picker" id="ratingPicker">
+        <button type="button" data-rating="1" onclick="setRating(1)">&#9733;</button><button type="button" data-rating="2" onclick="setRating(2)">&#9733;</button><button type="button" data-rating="3" onclick="setRating(3)">&#9733;</button><button type="button" data-rating="4" onclick="setRating(4)">&#9733;</button><button type="button" data-rating="5" onclick="setRating(5)" class="active">&#9733;</button>
+      </div>
+      <div id="ratingLabel" class="rating-label">Excellent</div>
+      <textarea id="reviewComment" required rows="4" placeholder="Write what went well, clarity, punctuality, and usefulness..."></textarea>
+      <div id="feedbackMsg"></div>
+      <button class="btn btn-primary btn-wide">Submit feedback</button>
+    </form>
+  </div>
+  <section class="chat-panel">
+    <h2>Chat</h2>
+    <div id="log" class="room-log"></div>
+    <form class="room-input" onsubmit="sendMsg(event)"><input id="msg" placeholder="Message consultant or user"><button type="button" class="btn btn-ghost" onclick="startDictation()">Mic</button><button type="button" class="btn btn-ghost" onclick="readLatestMessage()">Speak</button><button class="btn btn-primary">Send</button></form>
+  </section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+const token=new URLSearchParams(location.search).get('token');
+let room=null;
+let timer=null;
+let cutoffTimer=null;
+let countdownTimer=null;
+let callMode={video:true,audio:true};
+const callPackages={10:49,15:69,30:129};
+let selectedCallMinutes=10;
+let callActive=false;
+let currentAllowanceSeconds=300;
+let feedbackRequired=false;
+let feedbackSubmitted=false;
+let selectedRating=5;
+let localStream=null;
+let peer=null;
+let signalSocket=null;
+let isMakingOffer=false;
+let pendingIce=[];
+const rtcConfig={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+const ratingText={1:'Needs improvement',2:'Fair',3:'Good',4:'Very good',5:'Excellent'};
+function row(m){return `<div class="chat-line"><strong>${m.sender_name}</strong><p>${m.content}</p><small>${new Date(m.created_at).toLocaleString()}</small></div>`}
+async function loadRoom(){
+  const r=await api('/me/booking-room/'+token);
+  room=r;
+  renderRoleShell(r);
+  renderRoomActions(r);
+  if(r.booking.status==='completed'){
+    handleCompletedState();
+  }
+  log.innerHTML=r.messages.map(row).join('')||'<div class="empty-state">No messages yet.</div>';
+}
+function renderRoleShell(r){
+  const isConsultant=!!r.viewer?.is_expert || userGet()?.role==='admin';
+  document.body.classList.toggle('consultant-room', isConsultant);
+  if(isConsultant){
+    roomSide.innerHTML='<a href="/expert/dashboard.html">Dashboard</a><a href="/expert/bookings.html" class="active">Upcoming</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a><a href="/expert/settings.html">Settings</a>';
+    title.textContent='Hosted consultation room';
+    meta.textContent='You are the host. Client: '+r.customer.name+' - '+new Date(r.booking.scheduled_at).toLocaleString();
+    participants.innerHTML=`<div class="card participant-card host"><h3>You</h3><p><strong>${r.expert.name}</strong></p><p>Host consultant - ${r.expert.category||''}</p></div><div class="card participant-card"><h3>User</h3><p><strong>${r.customer.name}</strong></p><p>Client</p></div>`;
+  }else{
+    title.textContent=r.expert.name+' consultation';
+    meta.textContent='With '+r.expert.name+' - '+new Date(r.booking.scheduled_at).toLocaleString();
+    participants.innerHTML=`<div class="card participant-card"><h3>Consultant</h3><p><strong>${r.expert.name}</strong></p><p>${r.expert.category||''}</p></div><div class="card participant-card"><h3>User</h3><p><strong>${r.customer.name}</strong></p><p>You</p></div>`;
+  }
+}
+function renderRoomActions(r){
+  const isConsultant=!!r.viewer?.is_expert || userGet()?.role==='admin';
+  const mode=(r.booking.mode||'video').toLowerCase();
+  const buttons=[];
+  if(mode==='video') buttons.push('<button class="btn btn-primary" onclick="startVideo()">Join video room</button>');
+  if(mode==='audio') buttons.push('<button class="btn btn-primary" onclick="startAudio()">Join audio room</button>');
+  if(mode==='chat') buttons.push('<span class="status-pill">Chat consultation</span>');
+  roomActions.innerHTML=buttons.join('');
+  if(isConsultant && mode==='chat') callState.textContent='This booking was made for chat. Use the chat box below.';
+}
+async function startVideo(){await startMedia({video:true,audio:true});}
+async function startAudio(){await startMedia({video:false,audio:true});}
+async function startMedia(opts){
+  try{
+    stopLocalMedia();
+    callActive=true;
+    callMode=opts;
+    if(!room?.viewer?.is_customer){
+      await api('/me/booking-room/'+token+'/call/start',{method:'POST',body:JSON.stringify({})}).catch(()=>{});
+      await openOnConsMeet(opts);
+      meetStatus.textContent='Host joined';
+      callState.textContent='OnCons Meet is ready. Waiting for the user to join.';
+      return;
+    }
+    const billing=await api('/me/booking-room/'+token+'/call/start',{method:'POST',body:JSON.stringify({})});
+    await openOnConsMeet(opts);
+    meetStatus.textContent='User joined';
+    callState.textContent=opts.video?'OnCons Meet connected. Both sides can join with one click.':'OnCons audio room connected. Camera is muted.';
+    currentAllowanceSeconds=(billing.paid_package?(billing.free_minutes||selectedCallMinutes):(billing.free_minutes||5))*60;
+    startUserTimer(currentAllowanceSeconds);
+    timer=setInterval(()=>loadRoom().catch(()=>{}),30000);
+  }catch(e){callState.textContent=e.message.includes('Pay')?e.message:'Unable to start call: '+e.message}
+}
+async function openOnConsMeet(opts){
+  if(!navigator.mediaDevices?.getUserMedia){
+    throw new Error('Camera and microphone need a secure browser origin. Use localhost on this laptop or enable secure origin for the LAN demo URL.');
+  }
+  localStream=await navigator.mediaDevices.getUserMedia({video:!!opts.video,audio:true});
+  localVideo.srcObject=localStream;
+  localPlaceholder.style.display=opts.video?'none':'grid';
+  localPlaceholder.textContent=opts.video?'':'Audio only';
+  remoteName.textContent=room?.viewer?.is_customer?(room.expert.name||'Consultant'):(room.customer.name||'User');
+  peer=new RTCPeerConnection(rtcConfig);
+  pendingIce=[];
+  localStream.getTracks().forEach(track=>peer.addTrack(track, localStream));
+  peer.ontrack=(event)=>{
+    remoteVideo.srcObject=event.streams[0];
+    remotePlaceholder.style.display='none';
+  };
+  peer.onicecandidate=(event)=>{
+    if(event.candidate) sendSignal({type:'candidate',candidate:event.candidate});
+  };
+  peer.onconnectionstatechange=()=>{
+    if(['connected','completed'].includes(peer.connectionState)) callState.textContent='Connected in OnCons Meet.';
+    if(['failed','disconnected'].includes(peer.connectionState)) callState.textContent='Connection paused. Ask the other side to stay on this page or rejoin.';
+  };
+  const wsProto=location.protocol==='https:'?'wss':'ws';
+  const apiUrl=new URL(API);
+  signalSocket=new WebSocket(`${wsProto}://${apiUrl.host}/api/ws/rooms/${token}`);
+  signalSocket.onopen=()=>{callState.textContent='Joining OnCons Meet...'};
+  signalSocket.onmessage=async(event)=>{
+    const data=JSON.parse(event.data);
+    if(data.type==='peer-joined'){
+      meetStatus.textContent='Both participants are in the room';
+      await makeOffer();
+      return;
+    }
+    if(data.type==='offer'){
+      await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
+      await flushIce();
+      const answer=await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      sendSignal({type:'answer',answer});
+      return;
+    }
+    if(data.type==='answer'){
+      await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
+      await flushIce();
+      return;
+    }
+    if(data.type==='candidate'){
+      const candidate=new RTCIceCandidate(data.candidate);
+      if(peer.remoteDescription) await peer.addIceCandidate(candidate);
+      else pendingIce.push(candidate);
+      return;
+    }
+    if(data.type==='peer-left'){
+      meetStatus.textContent='Waiting for participant';
+      remotePlaceholder.style.display='grid';
+      remotePlaceholder.textContent='The other person left the meet.';
+    }
+  };
+}
+function toggleMic(){
+  const track=localStream?.getAudioTracks()[0];
+  if(!track) return;
+  track.enabled=!track.enabled;
+  micBtn.textContent=track.enabled?'Mic on':'Mic off';
+  micBtn.classList.toggle('off', !track.enabled);
+}
+function toggleCam(){
+  const track=localStream?.getVideoTracks()[0];
+  if(!track) return;
+  track.enabled=!track.enabled;
+  camBtn.textContent=track.enabled?'Camera on':'Camera off';
+  camBtn.classList.toggle('off', !track.enabled);
+  localPlaceholder.style.display=track.enabled?'none':'grid';
+  localPlaceholder.textContent='Camera off';
+}
+async function makeOffer(){
+  if(isMakingOffer || !peer) return;
+  isMakingOffer=true;
+  try{
+    const offer=await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    sendSignal({type:'offer',offer});
+  }finally{isMakingOffer=false}
+}
+async function flushIce(){
+  while(pendingIce.length && peer?.remoteDescription){
+    await peer.addIceCandidate(pendingIce.shift());
+  }
+}
+function sendSignal(message){
+  if(signalSocket?.readyState===WebSocket.OPEN) signalSocket.send(JSON.stringify(message));
+}
+function stopLocalMedia(){
+  if(signalSocket){signalSocket.close();signalSocket=null}
+  if(peer){peer.close();peer=null}
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}
+  localVideo.srcObject=null;
+  remoteVideo.srcObject=null;
+  meetStatus.textContent='Private consultation room';
+  micBtn.textContent='Mic on';
+  camBtn.textContent='Camera on';
+  micBtn.classList.remove('off');
+  camBtn.classList.remove('off');
+  localPlaceholder.style.display='grid';
+  remotePlaceholder.style.display='grid';
+  remotePlaceholder.textContent='Waiting for the other person...';
+  callState.style.display='block';
+  if(timer){clearInterval(timer);timer=null}
+  if(cutoffTimer){clearTimeout(cutoffTimer);cutoffTimer=null}
+  if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}
+  callTimer.classList.add('hidden');
+}
+function startUserTimer(seconds){
+  if(!room?.viewer?.is_customer) return;
+  let left=Math.max(10, Number(seconds||300));
+  callTimer.classList.remove('hidden');
+  const draw=()=>{const m=String(Math.floor(left/60)).padStart(2,'0'),s=String(left%60).padStart(2,'0');callTimer.textContent=`${m}:${s}`};
+  draw();
+  countdownTimer=setInterval(()=>{if(!callActive)return;left=Math.max(0,left-1);draw();if(left<=0){handleTimeExceeded()}},1000);
+}
+async function handleTimeExceeded(){
+  if(!callActive) return;
+  callActive=false;
+  stopLocalMedia();
+  callState.textContent='Your time ended. Buy add-on minutes to resume the call.';
+  await api('/me/booking-room/'+token+'/call/end',{method:'POST',body:JSON.stringify({force_charge:true})}).catch(()=>{});
+  showTimeModal();
+}
+function showTimeModal(){
+  planGrid.innerHTML=Object.entries(callPackages).map(([min,amt])=>`<button class="plan-option ${Number(min)===selectedCallMinutes?'active':''}" onclick="selectPlan(${min})"><strong>${min} min</strong><span>INR ${amt}</span></button>`).join('');
+  timePayBox.innerHTML=`<button class="btn btn-primary" onclick="payForTime()">Pay INR ${callPackages[selectedCallMinutes]} and resume</button>`;
+  timeModal.classList.remove('hidden');
+}
+function closeTimeModal(){timeModal.classList.add('hidden')}
+function selectPlan(min){selectedCallMinutes=Number(min);showTimeModal()}
+async function payForTime(){
+  timePayBox.innerHTML='<div class="payment-wait">Preparing add-on payment...</div>';
+  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'call',purpose:'call_charge',booking_id:room.booking.id,provider:'upi',call_minutes:selectedCallMinutes})});
+  timePayBox.innerHTML=`<h3>Pay INR ${r.amount}</h3>${paymentQrHtml(r)}<div id="addonWait"></div>`;
+  waitForPayment(r.payment_id, document.getElementById('addonWait'), async()=>{closeTimeModal();await loadRoom();await startMedia(callMode);});
+}
+async function endCall(){
+  callActive=false;
+  stopLocalMedia();
+  try{
+    const r=await api('/me/booking-room/'+token+'/call/end',{method:'POST',body:JSON.stringify({})}).catch(()=>({}));
+    callState.textContent='Call ended.';
+    if(room?.viewer?.is_customer){showFeedbackModal();return}
+    location.href='/expert/dashboard.html';
+  }catch(e){callState.textContent=e.message}
+}
+function handleCompletedState(){
+  callActive=false;
+  stopLocalMedia();
+  if(room?.viewer?.is_customer && !feedbackSubmitted){
+    showFeedbackModal();
+  }else if(!room?.viewer?.is_customer){
+    setTimeout(()=>location.href='/expert/dashboard.html',900);
+  }
+}
+function showFeedbackModal(){
+  feedbackRequired=true;
+  setRating(selectedRating);
+  feedbackModal.classList.remove('hidden');
+  history.pushState({feedback:true}, '', location.href);
+}
+function setRating(n){
+  selectedRating=n;
+  document.querySelectorAll('#ratingPicker button').forEach(b=>b.classList.toggle('active', Number(b.dataset.rating)<=n));
+  ratingLabel.textContent=ratingText[n]||'Excellent';
+}
+async function submitFeedback(e){
+  e.preventDefault();
+  try{
+    await api('/reviews',{method:'POST',body:JSON.stringify({expert_id:room.expert.id,rating:selectedRating,comment:reviewComment.value.trim()})});
+    feedbackSubmitted=true;feedbackRequired=false;
+    feedbackMsg.innerHTML='<div class="alert alert-ok">Feedback saved. Redirecting to dashboard...</div>';
+    setTimeout(()=>location.href='/dashboard/index.html',800);
+  }catch(err){feedbackMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+window.addEventListener('beforeunload',e=>{if(feedbackRequired&&!feedbackSubmitted){e.preventDefault();e.returnValue='Finish the feedback review before leaving.'}});
+window.addEventListener('popstate',()=>{if(feedbackRequired&&!feedbackSubmitted){alert('Finish the feedback review, then go forward.');history.pushState({feedback:true},'',location.href)}});
+async function sendMsg(e){
+  e.preventDefault(); const content=msg.value.trim(); if(!content)return; msg.value='';
+  const m=await api('/me/booking-room/'+token+'/messages',{method:'POST',body:JSON.stringify({content})});
+  if(log.querySelector('.empty-state')) log.innerHTML='';
+  log.insertAdjacentHTML('beforeend',row(m)); log.scrollTop=log.scrollHeight;
+}
+function startDictation(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){alert('Speech recognition is not supported in this browser.');return}
+  const rec=new SpeechRecognition();
+  rec.lang='en-IN';
+  rec.onresult=(event)=>{msg.value=((msg.value||'')+' '+event.results[0][0].transcript).trim()};
+  rec.start();
+}
+function readLatestMessage(){
+  const last=[...document.querySelectorAll('.chat-line p')].pop();
+  const text=last?last.textContent:'No messages yet.';
+  speechSynthesis.cancel();
+  speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+loadRoom().catch(e=>{callState.textContent=e.message});
+</script>
+</body></html>

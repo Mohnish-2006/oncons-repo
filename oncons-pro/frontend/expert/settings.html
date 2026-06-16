@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultant Settings - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html">Dashboard</a><a href="/expert/bookings.html">Upcoming</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a><a href="/expert/settings.html" class="active">Settings</a></aside>
+<main class="dash-main">
+<h1>Consultant Settings</h1>
+<div class="settings-grid">
+  <section class="settings-card"><h2>Consultation</h2><label class="toggle-row"><span>Booking notifications</span><input type="checkbox" checked></label><label class="toggle-row"><span>Call status alerts</span><input type="checkbox" checked></label><label class="toggle-row"><span>Show only active requests</span><input type="checkbox" checked></label></section>
+  <section class="settings-card"><h2>Support</h2><p>For OTP, payment, certificate, or video room help, contact the project support channel.</p><button class="btn btn-primary" onclick="supportBox.innerHTML='<div class=&quot;alert alert-ok&quot;>Support: oncons.business@gmail.com</div>'">Contact support</button><div id="supportBox"></div></section>
+  <section class="settings-card"><h2>Account</h2><p>Keep your availability, fee, profile photo, and category updated before demo bookings.</p><button class="btn btn-ghost" onclick="logout()">Logout</button></section>
+</div>
+</main></div>
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+</body></html>

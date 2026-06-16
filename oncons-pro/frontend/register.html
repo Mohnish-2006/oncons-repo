@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body data-no-chrome="true">
+
+<div class="register-page">
+  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home">← Home</button>
+  <div class="register-shell">
+    <section class="register-panel">
+      <div class="login-brand" style="text-align:left;margin-bottom:24px">On<span>Cons</span></div>
+      <p class="section-tag">Secure onboarding</p>
+      <h1>Start your consultation journey</h1>
+      <p>Choose the correct role. Users can book consultants, while consultants manage requests, earnings, availability, and hosted calls.</p>
+      <div class="auth-switch" role="tablist">
+        <button id="userTab" class="active" type="button">User</button>
+        <button id="consultantTab" type="button">Consultant</button>
+      </div>
+      <div class="register-benefits">
+        <div><strong>Email OTP</strong><span>Verified account creation</span></div>
+        <div><strong>Separate dashboards</strong><span>User and consultant flows stay clean</span></div>
+        <div><strong>Certificate logic</strong><span>Shown only for required domains</span></div>
+      </div>
+    </section>
+
+    <form id="userForm" class="form auth-card register-card" onsubmit="regUser(event)">
+      <div class="form-heading"><h2>User Registration</h2><p>Create your learner/customer account.</p></div>
+      <label>Name<input required name="name" autocomplete="name"></label>
+      <label>Email<input required type="email" name="email" autocomplete="email"></label>
+      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <div class="otp-row">
+        <button id="sendUserOtpBtn" class="btn btn-ghost" type="button">Send OTP</button>
+        <label>OTP<input required name="otp" placeholder="6 digit code"></label>
+      </div>
+      <button class="btn btn-primary btn-wide">Create user account</button>
+      <div id="userMsg"></div>
+    </form>
+
+    <form id="consultantForm" class="form auth-card register-card hidden" onsubmit="regConsultant(event)">
+      <div class="form-heading"><h2>Consultant Registration</h2><p>Set up your professional profile and verification.</p></div>
+      <div class="grid-2">
+        <label>Name<input required name="name" autocomplete="name"></label>
+        <label>Phone<input required name="phone" autocomplete="tel"></label>
+      </div>
+      <label>Email<input required type="email" name="email" autocomplete="email"></label>
+      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <div class="grid-2">
+        <label>Domain<select required name="category" id="cat"></select></label>
+        <label>Consultation fee<input required type="number" min="0" name="fee" value="499"></label>
+      </div>
+      <div class="grid-2">
+        <label>Experience years<input required type="number" min="0" name="years_experience" value="1"></label>
+        <label>City<input name="city" placeholder="Mumbai, Delhi, Bengaluru"></label>
+      </div>
+      <label>Languages<input name="languages" placeholder="English, Hindi"></label>
+      <label>Professional bio<textarea required name="bio" rows="4" placeholder="Tell clients what you solve, your experience, and your availability."></textarea></label>
+      <div class="grid-2">
+        <label>Profile photo<input type="file" id="photo" accept="image/*"></label>
+        <label>Aadhaar upload<input type="file" id="aadhaar" accept="image/*,.pdf"></label>
+      </div>
+      <label id="certWrap" class="hidden">Certificate proof <input type="file" id="certificate" accept="image/*,.pdf"><small id="certHelp">This domain needs professional certificate proof.</small></label>
+      <div class="otp-row">
+        <button id="sendOtpBtn" class="btn btn-ghost" type="button">Send OTP</button>
+        <label>OTP<input required name="otp" placeholder="6 digit code"></label>
+      </div>
+      <button class="btn btn-primary btn-wide">Register consultant</button>
+      <div id="consultMsg"></div>
+    </form>
+  </div>
+</div>
+<div id="verifyOverlay" class="verify-overlay hidden">
+  <div class="verify-card">
+    <div class="checkmark"></div>
+    <h2>Verification successful</h2>
+    <p>Email OTP verified and profile marked verified.</p>
+  </div>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+const CATS=['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Plumber','Mechanic','Electrician','Tutor','Fitness Trainer','Nutritionist','Astrologer','Career Coach','Relationship Counselor','Interior Designer','Architect','Freelance Consultant'];
+const CERT_REQUIRED=new Set(['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Nutritionist','Interior Designer','Architect']);
+const els={
+  cat:document.getElementById('cat'),
+  userForm:document.getElementById('userForm'),
+  consultantForm:document.getElementById('consultantForm'),
+  userTab:document.getElementById('userTab'),
+  consultantTab:document.getElementById('consultantTab'),
+  sendOtpBtn:document.getElementById('sendOtpBtn'),
+  sendUserOtpBtn:document.getElementById('sendUserOtpBtn'),
+  userMsg:document.getElementById('userMsg'),
+  consultMsg:document.getElementById('consultMsg'),
+  photo:document.getElementById('photo'),
+  aadhaar:document.getElementById('aadhaar'),
+  certificate:document.getElementById('certificate'),
+  certWrap:document.getElementById('certWrap'),
+  verifyOverlay:document.getElementById('verifyOverlay')
+};
+els.cat.innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
+els.userTab.addEventListener('click',()=>mode('user'));
+els.consultantTab.addEventListener('click',()=>mode('consultant'));
+els.sendOtpBtn.addEventListener('click',sendOtp);
+els.sendUserOtpBtn.addEventListener('click',sendUserOtp);
+els.cat.addEventListener('change',renderCertificateRule);
+renderCertificateRule();
+function mode(kind){
+  els.userTab.classList.toggle('active', kind==='user');
+  els.consultantTab.classList.toggle('active', kind==='consultant');
+  els.userForm.classList.toggle('hidden', kind!=='user');
+  els.consultantForm.classList.toggle('hidden', kind!=='consultant');
+}
+function renderCertificateRule(){
+  const required=CERT_REQUIRED.has(els.cat.value);
+  els.certWrap.classList.toggle('hidden', !required);
+  els.certificate.required=required;
+  els.consultMsg.innerHTML=required
+    ? '<div class="alert alert-ok">This domain requires certificate proof before verification.</div>'
+    : '<div class="alert alert-ok">This domain does not require certificate proof.</div>';
+}
+async function fileData(input){
+  const f=input.files && input.files[0]; if(!f) return '';
+  return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});
+}
+async function regUser(e){
+  e.preventDefault(); const f=Object.fromEntries(new FormData(e.target)); f.role='user';
+  try{const r=await api('/auth/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/dashboard/index.html'}
+  catch(err){els.userMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+async function sendUserOtp(){
+  const email=els.userForm.email.value.trim();
+  if(!email){els.userMsg.innerHTML='<div class="alert alert-error">Enter email first.</div>';return}
+  els.sendUserOtpBtn.disabled=true;
+  try{const r=await api('/auth/otp/send',{method:'POST',body:JSON.stringify({email,purpose:'user_registration'})});
+    els.userMsg.innerHTML='<div class="alert alert-ok">'+r.message+(r.dev_otp?' Local demo OTP: <strong>'+r.dev_otp+'</strong>':'')+'</div>'}
+  catch(err){els.userMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  finally{els.sendUserOtpBtn.disabled=false}
+}
+async function sendOtp(){
+  const email=els.consultantForm.email.value.trim(), phone=els.consultantForm.phone.value.trim();
+  if(!email){els.consultMsg.innerHTML='<div class="alert alert-error">Enter email first.</div>';return}
+  els.sendOtpBtn.disabled=true;
+  try{const r=await api('/auth/otp/send',{method:'POST',body:JSON.stringify({email,phone,purpose:'consultant_registration'})});
+    els.consultMsg.innerHTML='<div class="alert alert-ok">'+r.message+(r.dev_otp?' Local demo OTP: <strong>'+r.dev_otp+'</strong>':'')+'</div>'}
+  catch(err){els.consultMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  finally{els.sendOtpBtn.disabled=false}
+}
+async function regConsultant(e){
+  e.preventDefault(); const f=Object.fromEntries(new FormData(e.target));
+  f.years_experience=Number(f.years_experience||0); f.fee=Number(f.fee||0);
+  f.profile_photo_url=await fileData(els.photo); f.aadhaar_url=await fileData(els.aadhaar);
+  f.certificate_url=await fileData(els.certificate);
+  if(CERT_REQUIRED.has(f.category) && !f.certificate_url){els.consultMsg.innerHTML='<div class="alert alert-error">Certificate proof is required for '+f.category+'.</div>';return}
+  els.consultMsg.innerHTML='<div class="alert alert-ok">Verifying email OTP and documents...</div>';
+  try{const r=await api('/auth/consultant/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/verification-success.html?next=/expert/dashboard.html'}
+  catch(err){els.consultMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+</script>
+</body></html>

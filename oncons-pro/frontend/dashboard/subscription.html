@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subscription — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="">Overview</a><a href="/dashboard/bookings.html" class="">Bookings</a><a href="/dashboard/payments.html" class="">Payments</a><a href="/dashboard/subscription.html" class="active">Subscription</a><a href="/dashboard/profile.html" class="">Profile</a><a href="/dashboard/chat.html" class="">AI Chat</a><a href="/dashboard/notifications.html" class="">Notifications</a></aside>
+<main class="dash-main">
+<h1>Your Subscription</h1><div id="sub" class="card">Loading…</div>
+<p style="margin-top:20px"><a href="/pricing.html" class="btn btn-primary" style="text-decoration:none">Change plan</a></p>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("".replace("user",""))||null;</script><script>(async()=>{try{const s=await api('/me/subscription');
+document.getElementById('sub').innerHTML=`<h2>${s.plan.toUpperCase()}</h2><p>Status: ${s.status}</p><p>Renews: ${s.renews_at?new Date(s.renews_at).toLocaleDateString():'—'}</p>`}catch(e){document.getElementById('sub').textContent='No active subscription.'}})();</script>
+</body></html>

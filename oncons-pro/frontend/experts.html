@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Experts — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="page"><h1>Find an Expert</h1>
+<div id="filters" style="display:flex;gap:10px;margin:20px 0;flex-wrap:wrap"></div>
+<div id="list" class="grid-3"></div></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+const CATS=['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Plumber','Mechanic','Electrician','Tutor','Fitness Trainer','Nutritionist','Astrologer','Career Coach','Relationship Counselor','Interior Designer','Architect','Freelance Consultant'];
+const f=document.getElementById('filters');
+f.innerHTML='<button class="chip" onclick="load()">All</button>'+CATS.map(c=>`<button class="chip" onclick="load('${c}')">${c}</button>`).join('');
+async function load(cat){
+  const list=document.getElementById('list');list.innerHTML='Loading…';
+  try{
+    const q=cat?('?category='+encodeURIComponent(cat)):'';
+    const exp=await api('/experts'+q);
+    if(!exp.length){list.innerHTML=`<div class="empty-state" style="grid-column:1/-1">
+      <strong>No experts found${cat?' for '+cat:''}.</strong>
+      <p style="margin-top:8px">If you just registered as an expert, hard refresh this page. If nothing appears, the expert registration did not reach the backend or the seed data was not loaded.</p>
+      <div class="expert-empty-actions">
+        <button class="btn btn-primary" onclick="location.reload()">Refresh experts</button>
+        <a class="btn btn-ghost" href="/register.html" style="text-decoration:none">Register expert</a>
+      </div>
+    </div>`;return}
+    list.innerHTML=exp.map(e=>`<div class="card"><h3>${e.name}</h3>
+      <p style="color:var(--muted);font-size:.85rem">${e.category} · ${e.years_experience} yrs</p>
+      <div class="stars">${'★'.repeat(Math.round(e.rating||5))}</div>
+      <p style="margin:10px 0">${e.bio||''}</p>
+      <p><strong>₹${e.fee}</strong> / session</p>
+      <a href="/expert-detail.html?id=${e.id}" class="btn btn-primary" style="display:inline-block;text-decoration:none;margin-top:8px">View profile</a>
+    </div>`).join('');
+  }catch(e){list.innerHTML='<p class="alert alert-error">'+e.message+'</p>'}
+}
+const q=new URLSearchParams(location.search);load(q.get('cat'));
+</script>
+</body></html>

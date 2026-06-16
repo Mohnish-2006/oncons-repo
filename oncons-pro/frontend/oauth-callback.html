@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signing in - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body data-no-chrome="true">
+<main class="login-screen"><section class="login-panel"><div class="login-brand">On<span>Cons</span></div><h1>Signing you in</h1><p class="login-copy" id="msg">Please wait...</p></section></main>
+<script src="/assets/js/shared.js"></script>
+<script>
+const p=new URLSearchParams(location.search);
+const token=p.get('token');
+const user=p.get('user');
+try{
+  if(!token || !user) throw new Error('Google login did not return account details.');
+  tokenSet(token);
+  userSet(JSON.parse(user));
+  const u=userGet();
+  location.href=(u.role==='expert'||u.role==='admin')?'/expert/dashboard.html':'/dashboard/index.html';
+}catch(err){
+  msg.innerHTML='<span class="alert alert-error">'+err.message+'</span>';
+}
+</script>
+</body></html>

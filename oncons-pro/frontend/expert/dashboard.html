@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expert Dashboard - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html" class="active">Dashboard</a><a href="/expert/bookings.html">Upcoming</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a><a href="/expert/settings.html">Settings</a></aside>
+<main class="dash-main">
+  <h1>Consultant Dashboard</h1>
+  <div class="grid-3" style="margin-top:20px">
+    <div class="card"><h3>Upcoming Bookings</h3><div id="bk">...</div></div>
+    <div class="card"><h3>Earned</h3><div id="er">...</div></div>
+    <div class="card"><h3>Rating</h3><div id="rt">...</div></div>
+  </div>
+  <section style="margin-top:24px">
+    <h2>Upcoming consultant requests</h2>
+    <div id="requests" class="booking-list"></div>
+  </section>
+  <section style="margin-top:24px">
+    <h2>Reviews & feedback</h2>
+    <div id="feedback" class="booking-list"></div>
+  </section>
+  <section style="margin-top:24px">
+    <h2>Notifications</h2>
+    <div id="notifs" class="booking-list"></div>
+  </section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+<script>
+async function loadDashboard(){
+  const s=await api('/expert/summary').catch(()=>({}));
+  bk.textContent=s.upcoming ?? s.bookings ?? 0;
+  er.textContent='INR '+(s.earnings||0);
+  rt.textContent=(s.rating||0)+' star';
+  const bookings=(await api('/expert/bookings').catch(()=>[])).filter(x=>!['completed','cancelled'].includes(x.status));
+  requests.innerHTML=bookings.length?bookings.slice(0,5).map(x=>`<div class="consult-card">
+    <div><strong>${x.user_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
+    <div class="action-row">${bookingActions(x)}</div>
+  </div>`).join(''):'<div class="empty-state">No upcoming consultant requests.</div>';
+  const reviews=await api('/expert/reviews').catch(()=>[]);
+  feedback.innerHTML=reviews.length?reviews.slice(0,4).map(x=>`<div class="review-mini"><strong>${x.user_name}</strong><span>${x.rating} star</span><p>${x.comment}</p></div>`).join(''):'<div class="empty-state">No reviews yet.</div>';
+  const n=await api('/me/notifications').catch(()=>[]);
+  notifs.innerHTML=n.length?n.slice(0,5).map(x=>`<div class="card"><strong>${x.title}</strong><p>${x.body}</p></div>`).join(''):'<div class="empty-state">No notifications yet.</div>';
+}
+loadDashboard();
+setInterval(loadDashboard,5000);
+function bookingActions(x){
+  if(x.status==='requested') return `<button class="btn btn-primary" onclick="decision(${x.id},'accept')">Accept</button><button class="btn btn-ghost" onclick="decision(${x.id},'reject')">Reject</button>`;
+  if(x.status==='confirmed') return `<a class="btn btn-primary" href="${x.meeting_url}">Room</a>`;
+  if(x.status==='cancelled') return `<span class="status-pill rejected">Rejected</span>`;
+  return `<span class="status-pill">${x.status}</span>`;
+}
+async function decision(id,decision){
+  await api('/expert/bookings/'+id+'/decision',{method:'POST',body:JSON.stringify({decision})});
+  await loadDashboard();
+}
+</script>
+</body></html>

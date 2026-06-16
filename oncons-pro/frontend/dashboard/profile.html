@@ -1,0 +1,54 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="">Overview</a><a href="/dashboard/bookings.html" class="">Bookings</a><a href="/dashboard/chat.html" class="">AI Chat Bot</a><a href="/dashboard/profile.html" class="active">Profile</a><a href="/dashboard/notifications.html" class="">Notifications</a><a href="/dashboard/settings.html">Settings</a></aside>
+<main class="dash-main">
+<h1>My Profile</h1>
+<div class="profile-head"><div id="avatar" class="avatar-xl"></div><div><p class="section-tag">Account profile</p><h2 id="displayName"></h2><p id="displayEmail"></p></div></div>
+<section class="profile-grid">
+<form class="form profile-form-card" onsubmit="save(event)">
+<div class="form-heading"><h2>Edit profile</h2><p>Keep your contact and profile photo updated.</p></div>
+<label>Name<input name="name" id="nm"></label>
+<label>Email<input name="email" id="em" type="email"></label>
+<label>Phone<input name="phone" id="ph"></label>
+<label>Profile picture<input type="file" id="photo" accept="image/*"></label>
+<button class="btn btn-primary">Save</button><div id="msg"></div></form>
+<section class="premium-insights">
+  <div><p class="section-tag">Paid consultant insights</p><h2>More reviews and performance details</h2><p>Select a booked consultant and pay INR 25 to unlock extended details, review summary, experience, and performance notes.</p></div>
+  <div id="consultantInsights" class="booking-list"></div>
+</section>
+</section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("".replace("user",""))||null;</script><script>
+async function fileData(input){const f=input.files&&input.files[0];if(!f)return '';return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+async function load(){const me=await api('/me');nm.value=me.name||'';em.value=me.email||'';ph.value=me.phone||'';displayName.textContent=me.name||'User';displayEmail.textContent=me.email||'';avatar.innerHTML=me.avatar_url?`<img src="${me.avatar_url}" alt="${me.name}">`:(me.name||'U').slice(0,1);loadInsights()}
+load();
+async function save(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));const pic=await fileData(photo);if(pic)f.avatar_url=pic;try{await api('/me',{method:'PATCH',body:JSON.stringify(f)});msg.innerHTML='<div class="alert alert-ok">Saved.</div>';load()}catch(err){msg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}</script>
+<script>
+async function loadInsights(){
+  const bookings=await api('/me/bookings').catch(()=>[]);
+  const seen=new Map();
+  bookings.forEach(b=>{if(!seen.has(b.expert_id))seen.set(b.expert_id,b)});
+  const rows=[...seen.values()];
+  consultantInsights.innerHTML=rows.length?rows.map(x=>`<div class="consult-card"><div><strong>${x.expert_name}</strong><p>${x.expert_category||'Consultant'} - unlock reviews and details</p><div id="insight-${x.expert_id}" class="insight-result"></div></div><button class="btn btn-primary" onclick="unlockInsight(${x.expert_id})">Pay INR 25</button></div>`).join(''):'<div class="empty-state">Book a consultant first. Paid details will appear here.</div>';
+}
+async function unlockInsight(expertId){
+  const box=document.getElementById('insight-'+expertId);
+  try{showInsight(expertId, await api('/experts/'+expertId+'/paid-details'));return}catch(e){}
+  box.innerHTML='<div class="payment-wait">Creating payment...</div>';
+  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'details',purpose:'details',expert_id:expertId,provider:'upi'})});
+  box.innerHTML=`${paymentQrHtml(r)}<div id="insightWait-${expertId}"></div>`;
+  waitForPayment(r.payment_id, document.getElementById('insightWait-'+expertId), async()=>showInsight(expertId, await api('/experts/'+expertId+'/paid-details')));
+}
+function showInsight(expertId,d){
+  document.getElementById('insight-'+expertId).innerHTML=`<div class="alert alert-ok"><strong>Unlocked</strong><br>${d.experience||''}<br>${d.feedback_summary||''}</div>`;
+}
+</script>
+</body></html>

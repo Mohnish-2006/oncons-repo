@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="active">Overview</a><a href="/dashboard/bookings.html">Bookings</a><a href="/dashboard/payments.html">Payments</a><a href="/dashboard/subscription.html">Subscription</a><a href="/dashboard/profile.html">Profile</a><a href="/dashboard/chat.html">AI Chat</a><a href="/dashboard/notifications.html">Notifications</a></aside>
+<main class="dash-main">
+<h1>Welcome back</h1>
+<div class="grid-3" style="margin-top:20px">
+<div class="card"><h3>Upcoming</h3><div id="up">...</div></div>
+<div class="card"><h3>Plan</h3><div id="pl">...</div></div>
+<div class="card"><h3>Spent</h3><div id="sp">...</div></div></div>
+
+<section style="margin-top:28px">
+  <h2>Upcoming consultant</h2>
+  <div id="nextBooking" class="booking-list"></div>
+</section>
+<section style="margin-top:28px">
+  <h2>Recent notifications</h2>
+  <div id="recentNotifs" class="booking-list"></div>
+</section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+(async()=>{
+try{
+  const me=await api('/me');
+  pl.textContent=(me.plan||'free').toUpperCase();
+  const bookings=await api('/me/bookings');
+  const upcoming=bookings.filter(x=>new Date(x.scheduled_at)>new Date()).sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at));
+  up.textContent=upcoming.length+' bookings';
+  nextBooking.innerHTML=upcoming.length?upcoming.slice(0,3).map(x=>`<div class="consult-card">
+    <div><strong>${x.expert_name}</strong><p>${x.expert_category||'Consultant'} - ${new Date(x.scheduled_at).toLocaleString()}</p></div>
+    <div class="action-row"><a class="btn btn-primary" href="${x.meeting_url}">Video call</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=chat">Chat</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=audio">Call</a></div>
+  </div>`).join(''):'<div class="empty-state">No consultant is shown here until you book one.</div>';
+  const payments=await api('/me/payments');
+  sp.textContent='INR '+payments.reduce((s,x)=>s+(x.amount||0),0);
+  const notifs=await api('/me/notifications').catch(()=>[]);
+  recentNotifs.innerHTML=notifs.length?notifs.slice(0,3).map(x=>`<div class="card"><strong>${x.title}</strong><p>${x.body}</p><small style="color:var(--muted)">${new Date(x.created_at).toLocaleString()}</small></div>`).join(''):'<div class="empty-state">No notifications yet.</div>';
+}catch(e){nextBooking.innerHTML='<div class="alert alert-error">'+e.message+'</div>'}
+})();
+</script>
+</body></html>

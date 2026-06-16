@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html" class="">Overview</a><a href="/expert/bookings.html" class="">Bookings</a><a href="/expert/earnings.html" class="">Earnings</a><a href="/expert/availability.html" class="">Availability</a><a href="/expert/profile.html" class="active">Profile</a></aside>
+<main class="dash-main"><h1>Expert Profile</h1><form class='form' onsubmit='sv(event)' style='max-width:520px;margin:0'><label>Name<input name='name' id='n'></label><label>Category<input name='category' id='c'></label><label>Years experience<input name='years_experience' type='number' id='y'></label><label>Fee (₹)<input name='fee' type='number' id='fe'></label><label>Bio<textarea name='bio' id='b' rows='4'></textarea></label><button class='btn btn-primary'>Save</button><div id='m'></div></form></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert".replace("user",""))||null;</script><script>(async()=>{const me=await api('/expert/me');n.value=me.name||'';c.value=me.category||'';y.value=me.years_experience||'';fe.value=me.fee||'';b.value=me.bio||''})();async function sv(e){e.preventDefault();try{await api('/expert/me',{method:'PATCH',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});m.innerHTML='<div class="alert alert-ok">Saved.</div>'}catch(err){m.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}</script>
+</body></html>

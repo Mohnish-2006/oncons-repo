@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Chat - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html">Overview</a><a href="/dashboard/bookings.html">Bookings</a><a href="/dashboard/payments.html">Payments</a><a href="/dashboard/subscription.html">Subscription</a><a href="/dashboard/profile.html">Profile</a><a href="/dashboard/chat.html" class="active">AI Chat</a><a href="/dashboard/notifications.html">Notifications</a></aside>
+<main class="dash-main">
+<h1>AI Assistant</h1>
+<p class="section-sub">Describe the problem. The assistant will ask what it needs, pick the right expert type, and send you to booking.</p>
+<div class="suggestions-row"><button class="suggest-chip" onclick="quick('My TV is not working')">TV not working</button><button class="suggest-chip" onclick="quick('Water is leaking from my kitchen tap')">Water leak</button><button class="suggest-chip" onclick="quick('I need help with a legal notice')">Legal notice</button></div>
+<div id="log" class="ai-log"></div>
+<form onsubmit="send(event)" class="chat-input-row"><input id="inp" class="chat-input" placeholder="Describe your situation..."><button class="send-btn">Send</button></form>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+let mem=[];
+function add(role,text){log.insertAdjacentHTML('beforeend',`<div class="chat-bubble bubble-${role==='user'?'user':'ai'}">${text}</div>`);log.scrollTop=log.scrollHeight}
+function addExperts(list,cat){
+  if(list?.length){
+    add('ai',`<strong>Suggested experts</strong><div class="booking-list">${list.map(x=>`<div class="consult-card"><div><strong>${x.name}</strong><p>${x.category||cat} - INR ${x.fee} - ${x.rating||0} star</p></div><a class="btn btn-primary" href="/expert-detail.html?id=${x.id}">Book</a></div>`).join('')}</div>`);
+  }else if(cat){
+    add('ai',`I found the right category: <strong>${cat}</strong>. No matching experts are loaded yet, so run <code>python seed.py</code> once or register a tutor/expert in that category.`);
+  }
+}
+function quick(t){inp.value=t;document.querySelector('form').requestSubmit()}
+async function send(e){
+  e.preventDefault();const t=inp.value.trim();if(!t)return;inp.value='';add('user',t);mem.push({role:'user',content:t});
+  try{const r=await api('/ai/chat',{method:'POST',body:JSON.stringify({messages:mem})});add('ai',r.reply);mem.push({role:'assistant',content:r.reply});
+    addExperts(r.recommended_experts,r.category);
+  }catch(err){add('ai','Error: '+err.message)}
+}
+add('ai','Tell me what happened, where you are stuck, and how urgent it is. I will suggest the right expert and help you book.');
+</script>
+</body></html>

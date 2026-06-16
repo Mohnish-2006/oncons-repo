@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookings - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html">Overview</a><a href="/dashboard/bookings.html" class="active">Bookings</a><a href="/dashboard/payments.html">Payments</a><a href="/dashboard/subscription.html">Subscription</a><a href="/dashboard/profile.html">Profile</a><a href="/dashboard/chat.html">AI Chat</a><a href="/dashboard/notifications.html">Notifications</a></aside>
+<main class="dash-main">
+<h1>My Bookings</h1>
+<div id="rows" class="booking-list"></div>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+(async()=>{
+  const b=await api('/me/bookings');
+  rows.innerHTML=b.length?b.map(x=>`<div class="consult-card">
+    <div><strong>${x.expert_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.status} - INR ${x.fee}</p></div>
+    <div class="action-row"><a class="btn btn-primary" href="${x.meeting_url}">Video call</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=chat">Chat</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=audio">Call</a></div>
+  </div>`).join(''):'<div class="empty-state">No bookings yet. Book a consultant to unlock chat, call, and video room.</div>';
+})();
+</script>
+</body></html>

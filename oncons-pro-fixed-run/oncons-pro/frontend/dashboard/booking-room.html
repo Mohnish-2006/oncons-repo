@@ -1,0 +1,199 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultation Room - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html">Overview</a><a href="/dashboard/bookings.html" class="active">Bookings</a><a href="/dashboard/chat.html">AI Chat</a></aside>
+<main class="dash-main">
+  <div class="room-head">
+    <div><p class="section-tag">Secure website room</p><h1 id="title">Consultation</h1><p id="meta"></p></div>
+    <div class="action-row"><button class="btn btn-primary" onclick="startVideo()">Video call</button><button class="btn btn-ghost" onclick="startAudio()">Audio call</button><button class="btn btn-ghost" onclick="endCall()">End call</button></div>
+  </div>
+  <div id="billingBox" class="card" style="margin-bottom:16px"></div>
+  <div id="callPlanBox" class="call-pay-panel"></div>
+  <section id="participants" class="grid-2" style="margin-bottom:16px"></section>
+  <section class="call-stage">
+    <iframe id="meetingFrame" allow="camera; microphone; fullscreen; display-capture"></iframe>
+    <div id="callState" class="call-state">Click Video call or Audio call to start from this website.</div>
+  </section>
+  <section class="chat-panel">
+    <h2>Chat</h2>
+    <div id="log" class="room-log"></div>
+    <form class="room-input" onsubmit="sendMsg(event)"><input id="msg" placeholder="Message consultant or user"><button type="button" class="btn btn-ghost" onclick="startDictation()">Mic</button><button type="button" class="btn btn-ghost" onclick="readLatestMessage()">Speak</button><button class="btn btn-primary">Send</button></form>
+  </section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("");</script>
+<script>
+const token=new URLSearchParams(location.search).get('token');
+let room=null;
+let timer=null;
+let cutoffTimer=null;
+let countdownTimer=null;
+let callMode={video:true,audio:true};
+const callPackages={1:5,5:25,10:35,15:99,20:99};
+let selectedCallMinutes=5;
+function row(m){return `<div class="chat-line"><strong>${m.sender_name}</strong><p>${m.content}</p><small>${new Date(m.created_at).toLocaleString()}</small></div>`}
+async function loadRoom(){
+  const r=await api('/me/booking-room/'+token);
+  room=r;
+  title.textContent=r.expert.name+' consultation';
+  meta.textContent='With '+r.customer.name+' - '+new Date(r.booking.scheduled_at).toLocaleString();
+  participants.innerHTML=`<div class="card"><h3>Expert</h3><p><strong>${r.expert.name}</strong></p><p>${r.expert.category||''}</p></div><div class="card"><h3>User</h3><p><strong>${r.customer.name}</strong></p><p>${r.customer.email||''}</p></div>`;
+  log.innerHTML=r.messages.map(row).join('')||'<div class="empty-state">No messages yet.</div>';
+  renderBilling(r.booking);
+  renderCallPlan(r.booking);
+}
+async function startVideo(){await startMedia({video:true,audio:true});}
+async function startAudio(){await startMedia({video:false,audio:true});}
+async function startMedia(opts){
+  try{
+    callMode=opts;
+    if(!room?.viewer?.is_customer){
+      await api('/me/booking-room/'+token+'/call/start',{method:'POST',body:JSON.stringify({})}).catch(()=>{});
+      openSharedMeeting(opts);
+      billingBox.innerHTML='Host/consultant access: no call duration payment on this side.';
+      callPlanBox.innerHTML='<h3>Shared room</h3><p>Join the same room as the user. No payment timer is shown here.</p>';
+      return;
+    }
+    if(room?.booking?.premium_call_free){
+      await api('/me/booking-room/'+token+'/call/start',{method:'POST',body:JSON.stringify({})});
+      openSharedMeeting(opts);
+      callState.textContent=opts.video?'Premium+ video call started.':'Premium+ audio call started.';
+      return;
+    }
+    if(room?.booking?.call_charge_status==='payment_due'){
+      renderCallPlan(room.booking,'Your free 2 minutes are over. Choose minutes and pay to continue.');
+      return;
+    }
+    const billing=await api('/me/booking-room/'+token+'/call/start',{method:'POST',body:JSON.stringify({})});
+    openSharedMeeting(opts);
+    callState.textContent=opts.video?'Shared video room opened. Both user and consultant can join here.':'Shared meeting room opened with camera muted.';
+    if(billing.paid_package){
+      startPaidCountdown(billing.free_minutes||room.booking.paid_call_minutes||selectedCallMinutes);
+    }else{
+      startFreeCountdown(billing.free_minutes||2,billing.rate_per_minute);
+    }
+    timer=setInterval(()=>loadRoom().catch(()=>{}),30000);
+  }catch(e){callState.textContent=e.message.includes('Pay')?e.message:'Unable to start call: '+e.message}
+}
+function openSharedMeeting(opts){
+  const displayName=encodeURIComponent(userGet()?.name||'OnCons user');
+  const roomName=encodeURIComponent('oncons-'+token);
+  const url=`https://meet.jit.si/${roomName}#userInfo.displayName="${displayName}"&config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=${opts.video?'false':'true'}`;
+  meetingFrame.src=url;
+  meetingFrame.style.display='block';
+  callState.style.display='block';
+  callState.innerHTML=`Both sides join the same room here. If the video does not load, <a style="color:#fff;text-decoration:underline" href="${url}" target="_blank">open the shared room</a>.`;
+}
+function stopLocalMedia(){
+  meetingFrame.src='about:blank';
+  meetingFrame.style.display='none';
+  callState.style.display='block';
+  if(timer){clearInterval(timer);timer=null}
+  if(cutoffTimer){clearTimeout(cutoffTimer);cutoffTimer=null}
+  if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}
+}
+function startFreeCountdown(freeMinutes, rate){
+  const total=Math.max(1, Number(freeMinutes||2))*60;
+  let left=total;
+  const draw=()=>{const m=Math.floor(left/60),s=String(left%60).padStart(2,'0');billingBox.innerHTML=`Free call time left: <strong>${m}:${s}</strong>. After that choose 1, 5, 10, 15 or 20 minute packages.`}
+  draw();
+  countdownTimer=setInterval(()=>{left=Math.max(0,left-1);draw()},1000);
+  cutoffTimer=setTimeout(()=>autoPauseForPayment(),(total+1)*1000);
+}
+function startPaidCountdown(minutes){
+  const total=Math.max(1, Number(minutes||selectedCallMinutes))*60;
+  let left=total;
+  const draw=()=>{const m=Math.floor(left/60),s=String(left%60).padStart(2,'0');billingBox.innerHTML=`Paid call time left: <strong>${m}:${s}</strong>. Add more minutes anytime from the call package panel.`}
+  draw();
+  countdownTimer=setInterval(()=>{left=Math.max(0,left-1);draw()},1000);
+  cutoffTimer=setTimeout(()=>autoPauseForPayment(),(total+1)*1000);
+}
+async function autoPauseForPayment(){
+  stopLocalMedia();
+  callState.textContent='Free or paid time ended. Choose a package to continue the user side call.';
+  try{
+    const b=await api('/me/booking-room/'+token+'/call/end',{method:'POST',body:JSON.stringify({force_charge:true})});
+    await loadRoom();
+    renderCallPlan(room.booking,'Your free 2 minutes are over. Choose a package to continue.');
+  }catch(e){billingBox.innerHTML='<div class="alert alert-error">'+e.message+'</div>'}
+}
+async function endCall(){
+  stopLocalMedia();
+  try{
+    const b=await api('/me/booking-room/'+token+'/call/end',{method:'POST',body:JSON.stringify({})});
+    callState.textContent='Call ended.';
+    if(b.premium_call_free){billingBox.innerHTML='Premium+ call ended. No call payment needed.';return}
+    if(b.amount){renderCallPlan(room.booking,`Total: ${b.total_minutes} min. Choose a package to pay and continue later.`)}
+    else{billingBox.innerHTML='No extra payment needed.'}
+  }catch(e){callState.textContent=e.message}
+}
+function renderBilling(b){
+  if(!room?.viewer?.is_customer){
+    billingBox.innerHTML='Host/consultant side: no call duration payment required.';
+  }else if(b.premium_call_free){
+    billingBox.innerHTML='Premium+ includes video calls for free.';
+  }else if(b.call_charge_status==='payment_due'){
+    billingBox.innerHTML='Payment needed before the call can continue.';
+  }else if(b.call_charge_status==='paid'){
+    billingBox.innerHTML=`Call package paid: ${b.paid_call_minutes||b.billable_minutes||selectedCallMinutes} minutes.`;
+  }else{
+    billingBox.innerHTML=`Free video/audio call available for ${b.free_minutes||2} minutes. Payment appears only after free time ends.`;
+  }
+}
+function renderCallPlan(b={}, message='Select call duration and pay here.'){
+  if(!room?.viewer?.is_customer){callPlanBox.innerHTML='<h3>Consultant room</h3><p>No call-duration payment on this side. Join the same room as the user.</p>';return}
+  if(b.premium_call_free){callPlanBox.innerHTML='<h3>Premium+ call access</h3><p>Video calls are included free with this plan.</p>';return}
+  if(b.call_charge_status==='paid'){
+    callPlanBox.innerHTML=`<h3>Ready to call</h3><p>Your ${b.paid_call_minutes||b.billable_minutes||selectedCallMinutes} minute package is paid. Start video or audio above.</p>`;
+    return;
+  }
+  if(b.call_charge_status!=='payment_due'){
+    callPlanBox.innerHTML='<h3>Free 2-minute call</h3><p>Start video or audio above. Payment options will appear only after the free time ends.</p>';
+    return;
+  }
+  callPlanBox.innerHTML=`<h3>Call minutes</h3><p>${message}</p><div class="call-choice-grid">
+    ${Object.entries(callPackages).map(([minutes,amount])=>`<button type="button" class="call-choice ${Number(minutes)===selectedCallMinutes?'active':''}" onclick="selectCallPackage(${minutes})"><strong>${minutes} min</strong>INR ${amount}</button>`).join('')}
+  </div><button class="btn btn-primary" style="margin-top:14px" onclick="payCallCharge(selectedCallMinutes)">Pay INR ${callPackages[selectedCallMinutes]} and start</button>`;
+}
+function selectCallPackage(minutes){
+  selectedCallMinutes=Number(minutes);
+  renderCallPlan(room?.booking||{});
+}
+async function payCallCharge(minutes){
+  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'call',purpose:'call_charge',booking_id:room.booking.id,provider:'upi',call_minutes:Number(minutes)})});
+  callPlanBox.innerHTML=`<h3>Pay for ${minutes} minutes</h3><p>Amount: INR ${r.amount}</p>${r.qr_url?`<img class="qr" src="${r.qr_url}" alt="Payment QR">`:''}<p>${r.upi_id?'UPI ID: '+r.upi_id:'Add UPI_ID in backend/.env to collect payment.'}</p>${r.upi_url?`<a class="btn btn-primary" href="${r.upi_url}">Open UPI app</a>`:''}<button class="btn btn-ghost" onclick="confirmCallPaid(${r.payment_id})">I have paid</button>`;
+}
+async function confirmCallPaid(pid){
+  const reference=prompt('Enter UPI transaction reference')||'manual-upi';
+  await api('/payments/'+pid+'/mark-paid',{method:'POST',body:JSON.stringify({reference})});
+  await loadRoom();
+  callPlanBox.innerHTML+=' <button class="btn btn-primary" onclick="startMedia(callMode)">Start paid call</button>';
+}
+async function sendMsg(e){
+  e.preventDefault(); const content=msg.value.trim(); if(!content)return; msg.value='';
+  const m=await api('/me/booking-room/'+token+'/messages',{method:'POST',body:JSON.stringify({content})});
+  if(log.querySelector('.empty-state')) log.innerHTML='';
+  log.insertAdjacentHTML('beforeend',row(m)); log.scrollTop=log.scrollHeight;
+}
+function startDictation(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){alert('Speech recognition is not supported in this browser.');return}
+  const rec=new SpeechRecognition();
+  rec.lang='en-IN';
+  rec.onresult=(event)=>{msg.value=((msg.value||'')+' '+event.results[0][0].transcript).trim()};
+  rec.start();
+}
+function readLatestMessage(){
+  const last=[...document.querySelectorAll('.chat-line p')].pop();
+  const text=last?last.textContent:'No messages yet.';
+  speechSynthesis.cancel();
+  speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+loadRoom().catch(e=>{callState.textContent=e.message});
+</script>
+</body></html>

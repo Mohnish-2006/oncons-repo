@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Earnings — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html" class="">Overview</a><a href="/expert/bookings.html" class="">Bookings</a><a href="/expert/earnings.html" class="active">Earnings</a><a href="/expert/availability.html" class="">Availability</a><a href="/expert/profile.html" class="">Profile</a></aside>
+<main class="dash-main"><h1>Earnings</h1><div id='e' class='card'>…</div></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert".replace("user",""))||null;</script><script>(async()=>{const s=await api('/expert/summary').catch(()=>({}));e.innerHTML=`<h2 style='font-family:Fraunces,serif;color:var(--teal)'>₹${s.earnings||0}</h2><p>Total this month</p>`})();</script>
+</body></html>

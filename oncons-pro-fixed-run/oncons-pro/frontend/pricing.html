@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pricing - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="page"><h1 style="text-align:center">Simple, transparent pricing</h1>
+<p style="text-align:center">More AI help, richer consultant reviews, saved feedback, and faster support as you grow.</p>
+<div class="grid-3" style="margin-top:40px">
+  <div class="price-card"><h2>Free</h2><div class="price-amt">INR 0<span>/mo</span></div>
+    <ul class="price-feat"><li>5 AI suggestion chats per month</li><li>Basic consultant search</li><li>Book verified consultants</li><li>Standard feedback history</li></ul>
+    <button class="btn btn-ghost" onclick="subscribe('free')">Get Started</button></div>
+  <div class="price-card popular"><h2>Pro</h2><div class="price-amt">INR 499<span>/mo</span></div>
+    <ul class="price-feat"><li>Unlimited AI suggestion chatbot usage</li><li>NLP issue analysis for home, legal, health, finance, and repair problems</li><li>More detailed consultant reviews</li><li>Priority booking notifications</li><li>Saved chats and consultation notes</li><li>More feedback requests after sessions</li><li>Faster support response</li></ul>
+    <button class="btn btn-primary" onclick="subscribe('pro')">Upgrade to Pro</button></div>
+  <div class="price-card"><h2>Premium Plus</h2><div class="price-amt">INR 1,499<span>/mo</span></div>
+    <ul class="price-feat"><li>Dedicated AI consultation assistant</li><li>Personalized expert matching</li><li>AI-generated reports after calls</li><li>Advanced consultant comparison and review summaries</li><li>Free video calls after booking</li><li>Premium feedback dashboard</li><li>Highest booking priority</li><li>Premium support</li></ul>
+    <button class="btn btn-primary" onclick="subscribe('premium')">Go Premium</button></div>
+</div>
+<div id="payBox" class="card pay-box hidden"></div>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+async function subscribe(plan){
+  if(!userGet()){location.href='/register.html';return}
+  try{
+    const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan,provider:'upi'})});
+    payBox.classList.remove('hidden');
+    payBox.innerHTML=`<h2>Pay with UPI / QR</h2><p>Amount: INR ${r.amount}</p>${r.qr_url?`<img class="qr" src="${r.qr_url}" alt="Payment QR">`:'<div class="empty-state">Add PAYMENT_QR_URL in backend/.env to show your QR code here.</div>'}<p>${r.upi_id?'UPI ID: '+r.upi_id:'Add UPI_ID in backend/.env so the money reaches your bank account.'}</p>${r.upi_url?`<a class="btn btn-primary" href="${r.upi_url}">Open UPI app</a>`:''}<button class="btn btn-ghost" onclick="markPaid(${r.payment_id})">I have paid</button>`;
+  }catch(e){alert(e.message)}
+}
+async function markPaid(id){
+  const reference=prompt('Enter UPI transaction reference (optional)')||'manual-upi';
+  await api('/payments/'+id+'/mark-paid',{method:'POST',body:JSON.stringify({reference})});
+  location.href='/dashboard/subscription.html';
+}
+</script>
+</body></html>

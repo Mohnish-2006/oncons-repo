@@ -1,0 +1,110 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body data-no-chrome="true">
+
+<div class="page auth-page">
+  <div class="auth-shell">
+    <section>
+      <p class="section-tag">Join OnCons</p>
+      <h1>Create your account</h1>
+      <p>Book trusted consultants, chat with AI before a session, and join calls directly inside the website.</p>
+      <div class="auth-switch" role="tablist">
+        <button id="userTab" class="active" type="button">User</button>
+        <button id="consultantTab" type="button">Register as Consultant</button>
+      </div>
+    </section>
+
+    <form id="userForm" class="form auth-card" onsubmit="regUser(event)">
+      <label>Name<input required name="name" autocomplete="name"></label>
+      <label>Email<input required type="email" name="email" autocomplete="email"></label>
+      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <button class="btn btn-primary">Create account</button>
+      <div id="userMsg"></div>
+    </form>
+
+    <form id="consultantForm" class="form auth-card hidden" onsubmit="regConsultant(event)">
+      <div class="grid-2">
+        <label>Name<input required name="name" autocomplete="name"></label>
+        <label>Phone<input required name="phone" autocomplete="tel"></label>
+      </div>
+      <label>Email<input required type="email" name="email" autocomplete="email"></label>
+      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <div class="grid-2">
+        <label>Category<select required name="category" id="cat"></select></label>
+        <label>Consultation fee<input required type="number" min="0" name="fee" value="499"></label>
+      </div>
+      <div class="grid-2">
+        <label>Experience years<input required type="number" min="0" name="years_experience" value="1"></label>
+        <label>City<input name="city" placeholder="Mumbai, Delhi, Bengaluru"></label>
+      </div>
+      <label>Languages<input name="languages" placeholder="English, Hindi"></label>
+      <label>Professional bio<textarea required name="bio" rows="4" placeholder="Tell clients what you solve, your experience, and your availability."></textarea></label>
+      <div class="grid-2">
+        <label>Profile photo<input type="file" id="photo" accept="image/*"></label>
+        <label>Aadhaar upload<input type="file" id="aadhaar" accept="image/*,.pdf"></label>
+      </div>
+      <div class="otp-row">
+        <button id="sendOtpBtn" class="btn btn-ghost" type="button">Send OTP</button>
+        <label>OTP<input required name="otp" placeholder="6 digit code"></label>
+      </div>
+      <button class="btn btn-primary">Register consultant</button>
+      <div id="consultMsg"></div>
+    </form>
+  </div>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+const CATS=['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Plumber','Mechanic','Electrician','Tutor','Fitness Trainer','Nutritionist','Astrologer','Career Coach','Relationship Counselor','Interior Designer','Architect','Freelance Consultant'];
+const els={
+  cat:document.getElementById('cat'),
+  userForm:document.getElementById('userForm'),
+  consultantForm:document.getElementById('consultantForm'),
+  userTab:document.getElementById('userTab'),
+  consultantTab:document.getElementById('consultantTab'),
+  sendOtpBtn:document.getElementById('sendOtpBtn'),
+  userMsg:document.getElementById('userMsg'),
+  consultMsg:document.getElementById('consultMsg'),
+  photo:document.getElementById('photo'),
+  aadhaar:document.getElementById('aadhaar')
+};
+els.cat.innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
+els.userTab.addEventListener('click',()=>mode('user'));
+els.consultantTab.addEventListener('click',()=>mode('consultant'));
+els.sendOtpBtn.addEventListener('click',sendOtp);
+function mode(kind){
+  els.userTab.classList.toggle('active', kind==='user');
+  els.consultantTab.classList.toggle('active', kind==='consultant');
+  els.userForm.classList.toggle('hidden', kind!=='user');
+  els.consultantForm.classList.toggle('hidden', kind!=='consultant');
+}
+async function fileData(input){
+  const f=input.files && input.files[0]; if(!f) return '';
+  return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(f)});
+}
+async function regUser(e){
+  e.preventDefault(); const f=Object.fromEntries(new FormData(e.target)); f.role='user';
+  try{const r=await api('/auth/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/dashboard/index.html'}
+  catch(err){els.userMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+async function sendOtp(){
+  const email=els.consultantForm.email.value.trim(), phone=els.consultantForm.phone.value.trim();
+  if(!email){els.consultMsg.innerHTML='<div class="alert alert-error">Enter email first.</div>';return}
+  els.sendOtpBtn.disabled=true;
+  try{const r=await api('/auth/otp/send',{method:'POST',body:JSON.stringify({email,phone,purpose:'consultant_registration'})});
+    els.consultMsg.innerHTML='<div class="alert alert-ok">OTP sent. Local test OTP: <strong>'+r.dev_otp+'</strong></div>'}
+  catch(err){els.consultMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  finally{els.sendOtpBtn.disabled=false}
+}
+async function regConsultant(e){
+  e.preventDefault(); const f=Object.fromEntries(new FormData(e.target));
+  f.years_experience=Number(f.years_experience||0); f.fee=Number(f.fee||0);
+  f.profile_photo_url=await fileData(els.photo); f.aadhaar_url=await fileData(els.aadhaar);
+  try{const r=await api('/auth/consultant/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/expert/dashboard.html'}
+  catch(err){els.consultMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+}
+</script>
+</body></html>

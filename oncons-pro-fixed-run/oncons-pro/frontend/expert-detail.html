@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expert - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="page"><div id="detail">Loading...</div></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+const id=new URLSearchParams(location.search).get('id');
+(async()=>{
+  try{
+    const e=await api('/experts/'+id);
+    const reviews=await api('/experts/'+id+'/reviews').catch(()=>[]);
+    detail.innerHTML=`
+      <div class="expert-hero">
+        ${e.profile_photo_url?`<img src="${e.profile_photo_url}" alt="${e.name}">`:'<div class="avatar-xl">'+e.name.slice(0,1)+'</div>'}
+        <div><h1>${e.name}</h1><p>${e.category} - ${e.years_experience} years experience</p><div class="stars">${'★'.repeat(Math.round(e.rating||5))} <span>(${reviews.length} reviews)</span></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><h2>About</h2><p>${e.bio||''}</p><p><strong>City:</strong> ${e.city||'Online'}</p><p><strong>Languages:</strong> ${e.languages||'Not specified'}</p>
+          <div id="detailsBox" class="empty-state" style="margin-top:16px">
+            Feedback and experience notes are locked for this expertise.
+            <button class="btn btn-primary" style="margin-top:10px" onclick="unlockDetails()">Unlock details - INR ${e.details_price||99}</button>
+          </div>
+        </div>
+        <form class="card form" onsubmit="book(event)"><h2>Book consultation</h2><label>Date and time<input required type="datetime-local" id="scheduledAt" name="scheduled_at"></label><p><strong>Fee:</strong> INR ${e.fee} / session</p><button id="bookBtn" class="btn btn-primary">Continue to payment</button><div id="bookingPay"></div></form>
+      </div>
+      <h2>Reviews</h2>
+      ${reviews.map(r=>`<div class="card" style="margin-bottom:10px"><div class="stars">${'★'.repeat(r.rating)}</div><p>${r.comment}</p><small>${r.user_name||'User'}</small></div>`).join('')||'<p>No reviews yet.</p>'}`;
+  }catch(err){detail.innerHTML='<p class="alert alert-error">'+err.message+'</p>'}
+})();
+async function book(e){
+  e.preventDefault();
+  const box=document.getElementById('bookingPay');
+  const btn=document.getElementById('bookBtn');
+  if(!userGet()){location.href='/login.html';return}
+  const dateInput=document.getElementById('scheduledAt');
+  const rawDate=dateInput ? dateInput.value : '';
+  if(!rawDate){box.innerHTML='<div class="alert alert-error">Choose date and time first.</div>';return}
+  const pickedDate=new Date(rawDate);
+  if(Number.isNaN(pickedDate.getTime())){box.innerHTML='<div class="alert alert-error">Choose a valid date and time.</div>';return}
+  const scheduled_at=pickedDate.toISOString();
+  btn.disabled=true;
+  box.innerHTML='<div class="empty-state">Creating booking...</div>';
+  try{
+    const bk=await api('/bookings',{method:'POST',body:JSON.stringify({expert_id:Number(id),scheduled_at})});
+    box.innerHTML=`<div class="booking-pay-panel"><strong>Booking created.</strong><br>Pay INR ${bk.amount} to confirm it and add it to your dashboard.
+      <div class="pay-method-grid">
+        <button type="button" class="pay-method active" data-provider="upi" onclick="chooseProvider(this)">UPI / QR</button>
+        <button type="button" class="pay-method" data-provider="razorpay" onclick="chooseProvider(this)">Credit / Debit</button>
+        <button type="button" class="pay-method" data-provider="stripe" onclick="chooseProvider(this)">Card / Wallet</button>
+      </div>
+      <button type="button" class="btn btn-primary" style="margin-top:12px" onclick="payBooking(${bk.id})">Pay and confirm booking</button></div>`;
+  }
+  catch(err){box.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  finally{btn.disabled=false}
+}
+async function payBooking(bookingId){
+  const box=document.getElementById('bookingPay');
+  const provider=document.querySelector('.pay-method.active')?.dataset.provider||'upi';
+  box.insertAdjacentHTML('beforeend','<div id="payStatus" class="empty-state" style="margin-top:10px">Preparing payment...</div>');
+  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'booking',booking_id:bookingId,provider})});
+  if(r.checkout_url && !r.checkout_url.includes('stub.local')){location.href=r.checkout_url;return}
+  box.innerHTML=`<div class="empty-state"><h3>Complete payment</h3><p>Amount: INR ${r.amount}</p>${r.qr_url?`<img class="qr" src="${r.qr_url}" alt="Payment QR">`:''}<p>${r.upi_id?'UPI ID: '+r.upi_id:'For local testing, click paid after entering a reference.'}</p>${r.upi_url?`<a class="btn btn-primary" href="${r.upi_url}">Open UPI app</a>`:''}<button type="button" class="btn btn-primary" onclick="confirmBookingPaid(${r.payment_id})">I have paid</button></div>`;
+}
+function chooseProvider(btn){
+  document.querySelectorAll('.pay-method').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+async function confirmBookingPaid(pid){
+  const reference=prompt('Enter payment reference')||'manual-payment';
+  await api('/payments/'+pid+'/mark-paid',{method:'POST',body:JSON.stringify({reference})});
+  location.href='/dashboard/bookings.html';
+}
+async function unlockDetails(){
+  if(!userGet()){location.href='/login.html';return}
+  try{
+    const existing=await api('/experts/'+id+'/paid-details');
+    showDetails(existing);
+  }catch(err){
+    if(!String(err.message).includes('Pay INR')){alert(err.message);return}
+    const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'details',purpose:'details',expert_id:Number(id),provider:'upi'})});
+    detailsBox.innerHTML=`<h3>Pay once for this expertise</h3><p>Amount: INR ${r.amount}</p>${r.qr_url?`<img class="qr" src="${r.qr_url}" alt="Payment QR">`:''}<p>${r.upi_id?'UPI ID: '+r.upi_id:'Add UPI_ID in backend/.env to collect payment.'}</p>${r.upi_url?`<a class="btn btn-primary" href="${r.upi_url}">Open UPI app</a>`:''}<button class="btn btn-ghost" onclick="confirmDetailsPaid(${r.payment_id})">I have paid</button>`;
+  }
+}
+async function confirmDetailsPaid(pid){
+  const reference=prompt('Enter UPI transaction reference')||'manual-upi';
+  await api('/payments/'+pid+'/mark-paid',{method:'POST',body:JSON.stringify({reference})});
+  const details=await api('/experts/'+id+'/paid-details');
+  showDetails(details);
+}
+function showDetails(d){
+  detailsBox.className='card';
+  detailsBox.innerHTML=`<h3>Unlocked details</h3><p><strong>Experience:</strong> ${d.experience||'Not provided'}</p><p><strong>Feedback:</strong> ${d.feedback_summary||'No premium feedback yet.'}</p>`;
+}
+</script>
+</body></html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Bookings - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/bookings.html" class="active">Bookings</a><a href="/admin/payments.html">Payments</a><a href="/admin/reviews.html">Reviews</a></aside>
+<main class="dash-main"><h1>Booked Consultations</h1><p class="admin-kicker">Only confirmed or paid bookings are listed here.</p><div id="out" class="admin-panel">Loading...</div></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("admin")||null;</script>
+<script>
+(async()=>{
+  const d=await api('/admin/bookings');
+  out.innerHTML=d.length?`<table class="tbl"><thead><tr><th>User booked</th><th>Consultant</th><th>Expert email</th><th>Time</th><th>Status</th><th>Fee</th></tr></thead><tbody>${d.map(x=>`<tr><td><strong>${x.customer_name}</strong><br><small>${x.customer_email}</small></td><td>${x.expert_name}<br><small>${x.expert_category||''}</small></td><td>${x.expert_email||'-'}</td><td>${new Date(x.scheduled_at).toLocaleString()}</td><td>${x.status}</td><td>INR ${x.fee}</td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No booked consultations yet.</div>';
+})();
+</script>
+</body></html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html" class="active">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html">Payments</a><a href="/admin/reviews.html">Reviews</a></aside>
+<main class="dash-main">
+  <section class="admin-hero">
+    <div><h1>Admin Command Center</h1><p class="admin-kicker">Bookings, earnings, users, and consultant operations.</p></div>
+    <div class="admin-pill">Live operations</div>
+  </section>
+  <div class="metric-grid">
+    <div class="metric-card"><span>Total users</span><strong id="u">...</strong></div>
+    <div class="metric-card"><span>Consultants</span><strong id="e">...</strong></div>
+    <div class="metric-card"><span>Bookings</span><strong id="b">...</strong></div>
+    <div class="metric-card"><span>Earnings</span><strong id="r">...</strong></div>
+  </div>
+  <section class="admin-panel">
+    <h2>Upcoming Booked Users</h2>
+    <p class="admin-kicker">Shows the user who booked, the consultant, time, and room link.</p>
+    <div id="upcoming" class="admin-list"></div>
+  </section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("admin")||null;</script>
+<script>
+(async()=>{
+  const s=await api('/admin/stats');
+  u.textContent=s.users;
+  e.textContent=s.experts;
+  b.textContent=s.bookings||0;
+  r.textContent='INR '+(s.earnings||0);
+  const rows=await api('/admin/upcoming-bookings');
+  upcoming.innerHTML=rows.length?rows.map(x=>`<div class="admin-booking">
+    <div><strong>${x.customer_name}</strong><br><small>${x.customer_email}</small></div>
+    <div><strong>${x.expert_name}</strong><br><small>${x.expert_category||'Consultant'} - ${x.expert_email||'No expert email'}</small></div>
+    <div><strong>${new Date(x.scheduled_at).toLocaleString()}</strong><br><small>${x.status} - INR ${x.fee}</small></div>
+  </div>`).join(''):'<div class="empty-state">No upcoming paid bookings yet.</div>';
+})();
+</script>
+</body></html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile — OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/dashboard/index.html" class="">Overview</a><a href="/dashboard/bookings.html" class="">Bookings</a><a href="/dashboard/payments.html" class="">Payments</a><a href="/dashboard/subscription.html" class="">Subscription</a><a href="/dashboard/profile.html" class="active">Profile</a><a href="/dashboard/chat.html" class="">AI Chat</a><a href="/dashboard/notifications.html" class="">Notifications</a></aside>
+<main class="dash-main">
+<h1>My Profile</h1>
+<form class="form" onsubmit="save(event)" style="max-width:520px;margin:0">
+<label>Name<input name="name" id="nm"></label>
+<label>Email<input name="email" id="em" type="email"></label>
+<label>Phone<input name="phone" id="ph"></label>
+<button class="btn btn-primary">Save</button><div id="msg"></div></form>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("".replace("user",""))||null;</script><script>(async()=>{const me=await api('/me');nm.value=me.name||'';em.value=me.email||'';ph.value=me.phone||''})();
+async function save(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));try{await api('/me',{method:'PATCH',body:JSON.stringify(f)});msg.innerHTML='<div class="alert alert-ok">Saved.</div>'}catch(err){msg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}</script>
+</body></html>

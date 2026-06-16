@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Payments - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html" class="active">Payments</a><a href="/admin/reviews.html">Reviews</a></aside>
+<main class="dash-main"><h1>Expert Payments Received</h1><p class="admin-kicker">Paid app transactions from users, tied back to consultant bookings where available.</p><div id="out" class="admin-panel">Loading...</div></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("admin")||null;</script>
+<script>
+(async()=>{
+  const d=await api('/admin/payments');
+  out.innerHTML=d.length?`<div class="admin-list">${d.map(x=>`<div class="admin-payment">
+    <div><strong>${x.paid_by}</strong><br><small>${x.user_email} - ${x.description||'Payment'}</small></div>
+    <div><strong>${x.expert_name||'Platform'}</strong><br><small>${x.expert_email||'No expert linked'}</small></div>
+    <div><strong>INR ${x.amount}</strong><br><small>${x.provider||'manual'} - ${new Date(x.created_at).toLocaleString()}</small></div>
+  </div>`).join('')}</div>`:'<div class="empty-state">No paid transactions yet.</div>';
+})();
+</script>
+</body></html>

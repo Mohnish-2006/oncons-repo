@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expert Dashboard - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html" class="active">Overview</a><a href="/expert/bookings.html">Bookings</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a></aside>
+<main class="dash-main">
+  <h1>Expert Overview</h1>
+  <div class="grid-3" style="margin-top:20px">
+    <div class="card"><h3>Bookings</h3><div id="bk">...</div></div>
+    <div class="card"><h3>Earnings</h3><div id="er">...</div></div>
+    <div class="card"><h3>Rating</h3><div id="rt">...</div></div>
+  </div>
+  <section style="margin-top:24px">
+    <h2>Requests & notifications</h2>
+    <div id="notifs" class="booking-list"></div>
+  </section>
+</main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+<script>
+(async()=>{
+  const s=await api('/expert/summary').catch(()=>({}));
+  bk.textContent=s.bookings||0;
+  er.textContent='INR '+(s.earnings||0);
+  rt.textContent=(s.rating||0)+' star';
+  const n=await api('/me/notifications').catch(()=>[]);
+  notifs.innerHTML=n.length?n.slice(0,5).map(x=>`<div class="card"><strong>${x.title}</strong><p>${x.body}</p><small style="color:var(--muted)">${new Date(x.created_at).toLocaleString()}</small></div>`).join(''):'<div class="empty-state">No requests yet.</div>';
+})();
+</script>
+</body></html>

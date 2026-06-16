@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookings - OnCons Expert</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+
+<div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html">Overview</a><a href="/expert/bookings.html" class="active">Bookings</a><a href="/expert/earnings.html">Earnings</a><a href="/expert/availability.html">Availability</a><a href="/expert/profile.html">Profile</a></aside>
+<main class="dash-main"><h1>Bookings</h1><div id="r" class="booking-list"></div></main></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("expert");</script>
+<script>
+(async()=>{
+  const b=await api('/expert/bookings').catch(()=>[]);
+  r.innerHTML=b.length?b.map(x=>`<div class="consult-card">
+    <div><strong>${x.user_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.status} - INR ${x.fee}</p></div>
+    <div class="action-row"><a class="btn btn-primary" href="${x.meeting_url}">Video call</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=chat">Chat</a><a class="btn btn-ghost" href="${x.meeting_url}&mode=audio">Call</a></div>
+  </div>`).join(''):'<div class="empty-state">No bookings.</div>';
+})();
+</script>
+</body></html>

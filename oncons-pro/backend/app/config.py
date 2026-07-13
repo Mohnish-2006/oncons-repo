@@ -1,15 +1,18 @@
 from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
+    ENVIRONMENT: str = "development"
     DATABASE_URL: str = "sqlite:///./oncons.db"
     JWT_SECRET: str = "dev-secret"
     JWT_ALGO: str = "HS256"
     JWT_EXP_MIN: int = 60
+    REFRESH_TOKEN_DAYS: int = 30
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/auth/google/callback"
     OPENAI_API_KEY: str = ""
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
     CLOUDINARY_URL: str = ""
@@ -18,8 +21,10 @@ class Settings(BaseSettings):
     UPI_ID: str = ""
     UPI_PAYEE_NAME: str = "OnCons"
     PAYMENT_QR_URL: str = ""
+    PAYMENT_AUTO_VERIFY_SECONDS: int = 8
     OTP_REQUIRE_EMAIL_DELIVERY: bool = False
     UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_MB: int = 8
     CALL_FREE_MINUTES: int = 5
     CALL_RATE_PER_MINUTE: int = 25
     DETAILS_UNLOCK_AMOUNT: int = 25

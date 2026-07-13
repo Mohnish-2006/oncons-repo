@@ -5,14 +5,16 @@
 <link rel="stylesheet" href="/assets/css/styles.css">
 </head><body data-no-chrome="true">
 <main class="login-screen"><section class="login-panel"><div class="login-brand">On<span>Cons</span></div><h1>Signing you in</h1><p class="login-copy" id="msg">Please wait...</p></section></main>
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 const p=new URLSearchParams(location.search);
 const token=p.get('token');
+const refreshToken=p.get('refresh_token');
 const user=p.get('user');
 try{
   if(!token || !user) throw new Error('Google login did not return account details.');
-  tokenSet(token);
+  tokenSet(token,refreshToken);
   userSet(JSON.parse(user));
   const u=userGet();
   location.href=(u.role==='expert'||u.role==='admin')?'/expert/dashboard.html':'/dashboard/index.html';
@@ -21,3 +23,5 @@ try{
 }
 </script>
 </body></html>
+
+

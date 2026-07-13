@@ -37,6 +37,30 @@ def summary(u:User=Depends(require_role("expert")), db:Session=Depends(get_db)):
     upcoming=sum(1 for b in bks if b.status in ("requested","confirmed"))
     return {"bookings":len(bks),"upcoming":upcoming,"earnings":earnings,"rating":e.rating}
 
+@router.get("/analytics")
+def analytics(u:User=Depends(require_role("expert")), db:Session=Depends(get_db)):
+    e=_me(u,db)
+    bks=db.query(Booking).filter_by(expert_id=e.id).all()
+    reviews=db.query(Review).filter_by(expert_id=e.id).all()
+    by_status={}
+    hours=0.0
+    earnings=0
+    for booking in bks:
+        by_status[booking.status]=by_status.get(booking.status,0)+1
+        if booking.status in ("confirmed","completed"):
+            earnings+=booking.fee or 0
+        if booking.call_started_at and booking.call_ended_at:
+            hours+=(booking.call_ended_at-booking.call_started_at).total_seconds()/3600
+    avg_rating=sum(r.rating or 0 for r in reviews)/len(reviews) if reviews else (e.rating or 0)
+    return {
+        "earnings":earnings,
+        "bookings":len(bks),
+        "by_status":by_status,
+        "rating":round(avg_rating,2),
+        "reviews":len(reviews),
+        "consultation_hours":round(hours,2),
+    }
+
 @router.get("/bookings")
 def bookings(u:User=Depends(require_role("expert")), db:Session=Depends(get_db)):
     e=_me(u,db)

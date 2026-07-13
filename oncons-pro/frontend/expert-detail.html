@@ -7,6 +7,7 @@
 
 <div class="page expert-detail-page"><div id="detail">Loading...</div></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 const id=new URLSearchParams(location.search).get('id');
@@ -17,7 +18,7 @@ const id=new URLSearchParams(location.search).get('id');
     detail.innerHTML=`
       <div class="expert-hero expert-profile-hero">
         ${e.profile_photo_url?`<img src="${e.profile_photo_url}" alt="${e.name}">`:'<div class="avatar-xl">'+e.name.slice(0,1)+'</div>'}
-        <div><h1>${e.name}</h1><p>${e.category} - ${e.years_experience} years experience</p><div class="stars">${'★'.repeat(Math.round(e.rating||5))} <span>(${reviews.length} reviews)</span></div></div>
+        <div><h1>${e.name}</h1><p>${e.category} - ${e.years_experience} years experience</p><div class="stars">${'*'.repeat(Math.round(e.rating||5))} <span>(${reviews.length} reviews)</span></div></div>
       </div>
       <div class="grid-2 detail-grid">
         <div class="card expert-about-card"><h2>About</h2><p>${e.bio||''}</p><div class="info-pair"><span>City</span><strong>${e.city||'Online'}</strong></div><div class="info-pair"><span>Languages</span><strong>${e.languages||'Not specified'}</strong></div>
@@ -56,11 +57,12 @@ async function book(e){
     const bk=await api('/bookings',{method:'POST',body:JSON.stringify({expert_id:Number(id),scheduled_at,mode})});
     box.innerHTML=`<div class="booking-pay-panel"><strong>Booking created.</strong><br>Pay INR ${bk.amount} to confirm it and add it to your dashboard.
       <div class="pay-method-grid">
-        <button type="button" class="pay-method active" data-provider="upi" onclick="chooseProvider(this)">UPI / QR</button>
+        <button type="button" class="pay-method active" data-provider="razorpay" onclick="chooseProvider(this)">Razorpay</button>
+        <button type="button" class="pay-method" data-provider="upi" onclick="chooseProvider(this)">UPI / QR</button>
         <button type="button" class="pay-method" data-provider="debit_card" onclick="chooseProvider(this)">Debit card</button>
         <button type="button" class="pay-method" data-provider="credit_card" onclick="chooseProvider(this)">Credit card</button>
       </div>
-      <div id="bookingMethodPreview" class="payment-method-preview">${paymentMethodPreview('upi')}</div>
+      <div id="bookingMethodPreview" class="payment-method-preview">${paymentMethodPreview('razorpay')}</div>
       <button type="button" class="btn btn-primary" style="margin-top:12px" onclick="payBooking(${bk.id})">Pay and confirm booking</button></div>`;
   }
   catch(err){box.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
@@ -68,10 +70,11 @@ async function book(e){
 }
 async function payBooking(bookingId){
   const box=document.getElementById('bookingPay');
-  const provider=document.querySelector('.pay-method.active')?.dataset.provider||'upi';
+  const provider=document.querySelector('.pay-method.active')?.dataset.provider||'razorpay';
   if((provider==='debit_card'||provider==='credit_card') && !validCardForm('bookingMethodPreview')) return;
   box.insertAdjacentHTML('beforeend','<div id="payStatus" class="empty-state" style="margin-top:10px">Preparing payment...</div>');
   const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'booking',booking_id:bookingId,provider})});
+  if(provider==='razorpay'){await startRazorpayPayment(r, document.getElementById('payStatus'), ()=>location.href='/dashboard/bookings.html');return}
   if(r.checkout_url && !r.checkout_url.includes('stub.local')){location.href=r.checkout_url;return}
   box.innerHTML=`<div class="empty-state"><h3>Complete payment</h3><p>Amount: INR ${r.amount}</p>${provider==='upi'?paymentQrHtml(r):cardSummary(provider)}<div id="paymentWait"></div></div>`;
   waitForPayment(r.payment_id, document.getElementById('paymentWait'), ()=>location.href='/dashboard/bookings.html');
@@ -91,23 +94,26 @@ async function unlockDetails(){
     detailsBox.className='empty-state';
     detailsBox.innerHTML=`<div class="details-pay-panel"><h3>Pay INR 25</h3>
       <div class="pay-method-grid">
-        <button type="button" class="pay-method active" data-provider="upi" onclick="chooseProvider(this)">UPI / QR</button>
+        <button type="button" class="pay-method active" data-provider="razorpay" onclick="chooseProvider(this)">Razorpay</button>
+        <button type="button" class="pay-method" data-provider="upi" onclick="chooseProvider(this)">UPI / QR</button>
         <button type="button" class="pay-method" data-provider="debit_card" onclick="chooseProvider(this)">Debit card</button>
         <button type="button" class="pay-method" data-provider="credit_card" onclick="chooseProvider(this)">Credit card</button>
       </div>
-      <div id="detailsMethodPreview" class="payment-method-preview">${paymentMethodPreview('upi')}</div>
+      <div id="detailsMethodPreview" class="payment-method-preview">${paymentMethodPreview('razorpay')}</div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="payDetails()">Pay and verify</button>
       <div id="detailsWait"></div></div>`;
   }
 }
 async function payDetails(){
-  const provider=document.querySelector('.details-pay-panel .pay-method.active')?.dataset.provider||'upi';
+  const provider=document.querySelector('.details-pay-panel .pay-method.active')?.dataset.provider||'razorpay';
   if((provider==='debit_card'||provider==='credit_card') && !validCardForm('detailsMethodPreview')) return;
   const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'details',purpose:'details',expert_id:Number(id),provider})});
+  if(provider==='razorpay'){await startRazorpayPayment(r, detailsWait, async()=>showDetails(await api('/experts/'+id+'/paid-details')));return}
   detailsWait.innerHTML=provider==='upi'?paymentQrHtml(r):cardSummary(provider);
   waitForPayment(r.payment_id, detailsWait, async()=>showDetails(await api('/experts/'+id+'/paid-details')));
 }
 function paymentMethodPreview(provider){
+  if(provider==='razorpay') return '<div class="empty-state">Use Razorpay for hosted payments. The backend verifies the payment signature automatically.</div>';
   if(provider==='upi') return '<div class="empty-state">Click pay to show the QR, then wait for automatic verification.</div>';
   return `<div class="card-form">
     <label>Card number<input class="card-number" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456"></label>
@@ -139,3 +145,5 @@ function showDetails(d){
 }
 </script>
 </body></html>
+
+

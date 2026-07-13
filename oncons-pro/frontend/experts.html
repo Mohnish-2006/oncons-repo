@@ -1,42 +1,56 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Experts — OnCons</title>
+<title>Experts - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
-
 </head><body>
 
 <div class="page"><h1>Find an Expert</h1>
+<form id="searchForm" class="filter-bar" onsubmit="searchExperts(event)">
+  <div class="search-box"><input name="q" placeholder="Search name, city, service"></div>
+  <input name="language" placeholder="Language" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px">
+  <input name="max_price" type="number" min="0" placeholder="Max price" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;width:130px">
+  <select name="min_rating" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px">
+    <option value="">Any rating</option><option value="4">4+ stars</option><option value="3">3+ stars</option>
+  </select>
+  <button class="btn btn-primary">Search</button>
+</form>
 <div id="filters" style="display:flex;gap:10px;margin:20px 0;flex-wrap:wrap"></div>
 <div id="list" class="grid-3"></div></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 const CATS=['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Plumber','Mechanic','Electrician','Tutor','Fitness Trainer','Nutritionist','Astrologer','Career Coach','Relationship Counselor','Interior Designer','Architect','Freelance Consultant'];
-const f=document.getElementById('filters');
-f.innerHTML='<button class="chip" onclick="load()">All</button>'+CATS.map(c=>`<button class="chip" onclick="load('${c}')">${c}</button>`).join('');
+filters.innerHTML='<button class="chip" onclick="load()">All</button>'+CATS.map(c=>`<button class="chip" onclick="load('${escapeHtml(c)}')">${escapeHtml(c)}</button>`).join('');
 async function load(cat){
-  const list=document.getElementById('list');list.innerHTML='Loading…';
+  list.innerHTML=skeletonRows(6);
   try{
-    const q=cat?('?category='+encodeURIComponent(cat)):'';
-    const exp=await api('/experts'+q);
+    const params=new URLSearchParams(new FormData(searchForm));
+    [...params.keys()].forEach(k=>{if(!params.get(k))params.delete(k)});
+    if(cat) params.set('category',cat);
+    const qs=params.toString()?('?'+params.toString()):'';
+    const exp=await api('/experts'+qs);
     if(!exp.length){list.innerHTML=`<div class="empty-state" style="grid-column:1/-1">
-      <strong>No experts found${cat?' for '+cat:''}.</strong>
-      <p style="margin-top:8px">If you just registered as an expert, hard refresh this page. If nothing appears, the expert registration did not reach the backend or the seed data was not loaded.</p>
+      <strong>No experts found${cat?' for '+escapeHtml(cat):''}.</strong>
+      <p style="margin-top:8px">New consultant profiles can require admin verification before appearing in search.</p>
       <div class="expert-empty-actions">
         <button class="btn btn-primary" onclick="location.reload()">Refresh experts</button>
         <a class="btn btn-ghost" href="/register.html" style="text-decoration:none">Register expert</a>
       </div>
     </div>`;return}
-    list.innerHTML=exp.map(e=>`<div class="card"><h3>${e.name}</h3>
-      <p style="color:var(--muted);font-size:.85rem">${e.category} · ${e.years_experience} yrs</p>
-      <div class="stars">${'★'.repeat(Math.round(e.rating||5))}</div>
-      <p style="margin:10px 0">${e.bio||''}</p>
-      <p><strong>₹${e.fee}</strong> / session</p>
-      <a href="/expert-detail.html?id=${e.id}" class="btn btn-primary" style="display:inline-block;text-decoration:none;margin-top:8px">View profile</a>
+    list.innerHTML=exp.map(e=>`<div class="card"><h3>${escapeHtml(e.name)}</h3>
+      <p style="color:var(--muted);font-size:.85rem">${escapeHtml(e.category)} - ${Number(e.years_experience||0)} yrs</p>
+      <div class="stars">${'*'.repeat(Math.max(1,Math.min(5,Math.round(e.rating||5))))}</div>
+      <p style="margin:10px 0">${escapeHtml(e.bio||'')}</p>
+      <p><strong>INR ${Number(e.fee||0)}</strong> / session</p>
+      <a href="/expert-detail.html?id=${Number(e.id)}" class="btn btn-primary" style="display:inline-block;text-decoration:none;margin-top:8px">View profile</a>
     </div>`).join('');
-  }catch(e){list.innerHTML='<p class="alert alert-error">'+e.message+'</p>'}
+  }catch(e){list.innerHTML='<p class="alert alert-error">'+escapeHtml(e.message)+'</p>'}
 }
 const q=new URLSearchParams(location.search);load(q.get('cat'));
+function searchExperts(e){e.preventDefault();load()}
 </script>
 </body></html>
+
+

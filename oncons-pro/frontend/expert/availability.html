@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Availability — OnCons</title>
+<title>Availability - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
 
@@ -9,6 +9,9 @@
 <div class="dash-layout"><aside class="dash-side"><a href="/expert/dashboard.html" class="">Overview</a><a href="/expert/bookings.html" class="">Bookings</a><a href="/expert/earnings.html" class="">Earnings</a><a href="/expert/availability.html" class="active">Availability</a><a href="/expert/profile.html" class="">Profile</a><a href="/expert/settings.html">Settings</a></aside>
 <main class="dash-main"><h1>Availability</h1><form class='form' onsubmit='sv(event)'><label>Weekdays available<input name='days' placeholder='Mon,Tue,Wed,Thu,Fri' id='dy'></label><label>From<input type='time' name='from_time' id='ft'></label><label>To<input type='time' name='to_time' id='tt'></label><button class='btn btn-primary'>Save</button><div id='m'></div></form></main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("expert".replace("user",""))||null;</script><script>(async()=>{const a=await api('/expert/availability').catch(()=>({}));dy.value=a.days||'';ft.value=a.from_time||'';tt.value=a.to_time||''})();async function sv(e){e.preventDefault();try{await api('/expert/availability',{method:'PUT',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});m.innerHTML='<div class="alert alert-ok">Saved.</div>'}catch(err){m.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}</script>
 </body></html>
+
+

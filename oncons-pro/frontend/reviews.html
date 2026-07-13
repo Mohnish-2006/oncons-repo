@@ -1,16 +1,21 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reviews — OnCons</title>
+<title>Reviews - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
-
 </head><body>
 
 <div class="page"><h1>What people say</h1><div id="list" class="grid-2"></div></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
-(async()=>{const r=await api('/reviews/recent').catch(()=>[]);
-document.getElementById('list').innerHTML=r.map(x=>`<div class="card"><div class="stars">${'★'.repeat(x.rating)}</div><p>${x.comment}</p><small style="color:var(--muted)">${x.user_name} on ${x.expert_name}</small></div>`).join('')||'<p>No reviews yet.</p>'})();
+(async()=>{
+  list.innerHTML=skeletonRows(4);
+  const reviews=await api('/reviews/recent').catch(()=>[]);
+  list.innerHTML=reviews.map(x=>`<div class="card"><div class="stars">${'*'.repeat(Math.max(1,Math.min(5,Number(x.rating||0))))}</div><p>${escapeHtml(x.comment)}</p><small style="color:var(--muted)">${escapeHtml(x.user_name)} on ${escapeHtml(x.expert_name)}</small></div>`).join('')||'<p>No reviews yet.</p>';
+})();
 </script>
 </body></html>
+
+

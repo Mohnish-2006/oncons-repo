@@ -3,6 +3,7 @@
 from app.db import Base, engine, SessionLocal
 from app.models import Category, User, Expert
 from app.auth import hash_pw
+import os
 
 Base.metadata.create_all(bind=engine)
 db=SessionLocal()
@@ -19,8 +20,14 @@ for name, icon in CATS:
     if not db.query(Category).filter_by(name=name).first():
         db.add(Category(name=name, icon=icon))
 
-if not db.query(User).filter_by(email="admin@oncons.local").first():
-    db.add(User(name="Admin", email="admin@oncons.local", password_hash=hash_pw("admin12345"), role="admin"))
+admin_email=os.getenv("ADMIN_EMAIL", "oncons.business@gmail.com")
+admin_password=os.getenv("ADMIN_PASSWORD", "OnConsAdmin@2026")
+admin=db.query(User).filter_by(email=admin_email).first()
+if not admin:
+    db.add(User(name="Admin", email=admin_email, password_hash=hash_pw(admin_password), role="admin"))
+else:
+    admin.role="admin"
+    admin.password_hash=hash_pw(admin_password)
 
 SAMPLES=[
     ("Dr. Priya Sharma","Doctor",14,1200,4.9,"Senior doctor for everyday health guidance and second opinions.","Mumbai","English, Hindi"),
@@ -40,4 +47,4 @@ for name, category, years, fee, rating, bio, city, languages in SAMPLES:
                       verified=True, application_status="approved", available=True))
 
 db.commit()
-print("Seeded OnCons Pro.")
+print(f"Seeded OnCons Pro. Admin login: {admin_email} / {admin_password}")

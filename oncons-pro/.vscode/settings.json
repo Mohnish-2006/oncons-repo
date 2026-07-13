@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\backend\\.venv312\\Scripts\\python.exe",
+  "files.associations": {
+    "requirements.txt": "pip-requirements",
+    "requirements-*.txt": "pip-requirements"
+  },
+  "python.analysis.exclude": [
+    "**/requirements.txt",
+    "**/requirements-*.txt"
+  ]
+}

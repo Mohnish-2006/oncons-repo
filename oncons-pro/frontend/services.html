@@ -10,6 +10,7 @@
   <p>Pick a domain and OnCons will show matching consultants registered under that exact category.</p>
   <div id="serviceGrid" class="service-grid"></div>
 </main>
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 const services=[
@@ -25,3 +26,5 @@ serviceGrid.innerHTML=services.map(([cat,desc])=>`<a class="service-card" href="
 </a>`).join('');
 </script>
 </body></html>
+
+

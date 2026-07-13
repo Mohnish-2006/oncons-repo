@@ -1,13 +1,13 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in — OnCons</title>
+<title>Sign in - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
 
 </head><body data-no-chrome="true">
 
 <main class="login-screen">
-  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home">← Home</button>
+  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home"><- Home</button>
   <section class="login-panel">
     <div class="login-brand">On<span>Cons</span></div>
     <p class="section-tag" id="loginTag">Secure sign in</p>
@@ -28,14 +28,16 @@
   </section>
 </main>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 async function login(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
 try{const r=await api('/auth/login',{method:'POST',body:JSON.stringify(f)});
+  if(expectedRole==='admin' && r.user.role!=='admin') throw new Error('This is the admin login. Please use an admin account.');
   if(expectedRole==='consultant' && r.user.role!=='expert' && r.user.role!=='admin') throw new Error('This is the consultant login. Please use a consultant account.');
   if(expectedRole==='user' && (r.user.role==='expert'||r.user.role==='admin')) throw new Error('This is the user login. Please use consultant login.');
-  tokenSet(r.access_token);userSet(r.user);location.href=(r.user.role==='expert'||r.user.role==='admin')?'/expert/dashboard.html':'/dashboard/index.html';}
-catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}
+  tokenSet(r.access_token,r.refresh_token);userSet(r.user);location.href=r.user.role==='admin'?'/admin/index.html':(r.user.role==='expert'?'/expert/dashboard.html':'/dashboard/index.html');}
+catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+escapeHtml(err.message)+'</div>'}}
 async function oauthLogin(provider){
   if(provider==='apple'){
     document.getElementById('msg').innerHTML='<div class="alert alert-error">Apple Sign in needs Apple Developer credentials. Use email/password for this demo.</div>';
@@ -44,10 +46,17 @@ async function oauthLogin(provider){
   try{
     const r=await api('/auth/google');
     location.href=r.url;
-  }catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  }catch(err){document.getElementById('msg').innerHTML='<div class="alert alert-error">'+escapeHtml(err.message)+'</div>'}
 }
-const expectedRole=new URLSearchParams(location.search).get('role')==='consultant'?'consultant':'user';
-if(expectedRole==='consultant'){
+const roleParam=new URLSearchParams(location.search).get('role');
+const expectedRole=roleParam==='admin'?'admin':(roleParam==='consultant'?'consultant':'user');
+if(expectedRole==='admin'){
+  loginTag.textContent='Admin sign in';
+  loginTitle.textContent='Admin command center';
+  loginCopy.textContent='Sign in to manage users, consultants, bookings, payments, complaints, reports, settings, and platform health.';
+  socialBox.classList.add('hidden');
+  registerHint.innerHTML='Admin access is restricted to authorized platform accounts.';
+}else if(expectedRole==='consultant'){
   loginTag.textContent='Consultant sign in';
   loginTitle.textContent='Consultant dashboard';
   loginCopy.textContent='Sign in to manage requests, earnings, availability, profile, and consultation rooms.';
@@ -58,3 +67,5 @@ if(expectedRole==='consultant'){
 }
 </script>
 </body></html>
+
+

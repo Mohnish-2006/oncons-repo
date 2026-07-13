@@ -9,10 +9,11 @@
 <h1>Settings</h1>
 <div class="settings-grid">
   <section class="settings-card"><h2>Account</h2><label class="toggle-row"><span>Email notifications</span><input type="checkbox" checked></label><label class="toggle-row"><span>Booking reminders</span><input type="checkbox" checked></label><label class="toggle-row"><span>Payment alerts</span><input type="checkbox" checked></label></section>
-  <section class="settings-card"><h2>Customer Support</h2><p>Need help with booking, payment, consultant availability, or video room?</p><button class="btn btn-primary" onclick="supportMsg()">Contact support</button><div id="supportBox"></div></section>
+  <section class="settings-card"><h2>Customer Support</h2><form class="form" onsubmit="sendComplaint(event)"><label>Subject<input name="subject" required></label><label>Message<textarea name="body" rows="4" required></textarea></label><button class="btn btn-primary">Submit complaint</button></form><div id="supportBox"></div></section>
   <section class="settings-card"><h2>Privacy</h2><p>Your email is used for OTP and login. Consultants only see your name inside the consultation room.</p><button class="btn btn-ghost" onclick="logout()">Logout</button></section>
 </div>
 </main></div>
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
-<script>requireAuth("");function supportMsg(){supportBox.innerHTML='<div class="alert alert-ok">Support request noted for demo. Email: oncons.business@gmail.com</div>'}</script>
+<script>requireAuth("");async function sendComplaint(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));await api('/me/complaints',{method:'POST',body:JSON.stringify(f)});supportBox.innerHTML='<div class="alert alert-ok">Complaint submitted.</div>';e.target.reset()}</script>
 </body></html>

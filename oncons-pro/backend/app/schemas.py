@@ -8,6 +8,19 @@ class Login(BaseModel):
     email:EmailStr; password:str
 class TokenOut(BaseModel):
     access_token:str; user:dict
+    refresh_token:Optional[str]=None
+    token_type:str="bearer"
+    expires_in:int=3600
+
+class RefreshIn(BaseModel):
+    refresh_token:str
+
+class ForgotPasswordIn(BaseModel):
+    email:EmailStr
+
+class ResetPasswordIn(BaseModel):
+    token:str
+    password:str
 
 class ExpertOut(BaseModel):
     id:int; name:str; category:str; bio:Optional[str]=None
@@ -54,3 +67,13 @@ class ContactIn(BaseModel):
     name:str; email:EmailStr; message:str
 class ProfilePatch(BaseModel):
     name:Optional[str]=None; email:Optional[EmailStr]=None; phone:Optional[str]=None; avatar_url:Optional[str]=None
+
+class ComplaintIn(BaseModel):
+    subject:str
+    body:str
+    priority:str="normal"
+
+class ReportIn(BaseModel):
+    target_type:str
+    target_id:int
+    reason:str

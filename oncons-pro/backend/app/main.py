@@ -1,14 +1,40 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 import time
+from pathlib import Path
 from .db import Base, engine
 from .config import settings
-from .routers import auth, experts, bookings, payments, ai, reviews, dashboard, admin, contact, expert_portal, me, rooms
+from .routers import auth, experts, bookings, payments, ai, reviews, dashboard, admin, contact, expert_portal, me, rooms, uploads
 
-Base.metadata.create_all(bind=engine)
+def _validate_production_settings():
+    if settings.ENVIRONMENT.strip().lower() not in {"prod", "production"}:
+        return
+    problems=[]
+    if str(engine.url).startswith("sqlite"):
+        problems.append("DATABASE_URL must use PostgreSQL in production")
+    if settings.JWT_SECRET in {"", "dev-secret", "change-this-before-production"}:
+        problems.append("JWT_SECRET must be a strong production secret")
+    if "localhost" in settings.FRONTEND_URL or "127.0.0.1" in settings.FRONTEND_URL:
+        problems.append("FRONTEND_URL must be a deployed HTTPS URL")
+    if "localhost" in settings.ALLOWED_ORIGINS or "127.0.0.1" in settings.ALLOWED_ORIGINS:
+        problems.append("ALLOWED_ORIGINS must not include localhost in production")
+    if not settings.FRONTEND_URL.startswith("https://"):
+        problems.append("FRONTEND_URL must use HTTPS in production")
+    if problems:
+        raise RuntimeError("Invalid production configuration: " + "; ".join(problems))
+
+_validate_production_settings()
+
+def _is_production():
+    return settings.ENVIRONMENT.strip().lower() in {"prod", "production"}
+
+if not _is_production():
+    Base.metadata.create_all(bind=engine)
 
 def _sqlite_migrate():
     if not str(engine.url).startswith("sqlite"):
@@ -33,6 +59,8 @@ def _sqlite_migrate():
         "ALTER TABLE bookings ADD COLUMN billable_minutes INTEGER DEFAULT 0",
         "ALTER TABLE bookings ADD COLUMN call_charge_status VARCHAR DEFAULT 'not_started'",
         "ALTER TABLE bookings ADD COLUMN details_unlocked BOOLEAN DEFAULT 0",
+        "ALTER TABLE payments ADD COLUMN refunded_amount FLOAT DEFAULT 0",
+        "ALTER TABLE payments ADD COLUMN refund_ref VARCHAR",
     ]
     with engine.begin() as conn:
         for stmt in statements:
@@ -45,9 +73,11 @@ def _sqlite_migrate():
         except Exception:
             pass
 
-_sqlite_migrate()
+if not _is_production():
+    _sqlite_migrate()
 
 app = FastAPI(title="OnCons API")
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 allowed_origins=[o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 local_origin_regex=r"^http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):(5500|5600)$"
@@ -89,6 +119,11 @@ app.include_router(expert_portal.router, prefix=PREFIX+"/expert", tags=["expert"
 app.include_router(admin.router, prefix=PREFIX+"/admin", tags=["admin"])
 app.include_router(contact.router, prefix=PREFIX, tags=["contact"])
 app.include_router(rooms.router, prefix=PREFIX, tags=["rooms"])
+app.include_router(uploads.router, prefix=PREFIX+"/uploads", tags=["uploads"])
+
+if not _is_production():
+    Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 @app.get("/health")
 def health(): return {"ok":True}

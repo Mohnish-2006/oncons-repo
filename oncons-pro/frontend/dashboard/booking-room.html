@@ -67,6 +67,7 @@
   </section>
 </main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("");</script>
 <script>
@@ -286,9 +287,9 @@ function closeTimeModal(){timeModal.classList.add('hidden')}
 function selectPlan(min){selectedCallMinutes=Number(min);showTimeModal()}
 async function payForTime(){
   timePayBox.innerHTML='<div class="payment-wait">Preparing add-on payment...</div>';
-  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'call',purpose:'call_charge',booking_id:room.booking.id,provider:'upi',call_minutes:selectedCallMinutes})});
-  timePayBox.innerHTML=`<h3>Pay INR ${r.amount}</h3>${paymentQrHtml(r)}<div id="addonWait"></div>`;
-  waitForPayment(r.payment_id, document.getElementById('addonWait'), async()=>{closeTimeModal();await loadRoom();await startMedia(callMode);});
+  const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan:'call',purpose:'call_charge',booking_id:room.booking.id,provider:'razorpay',call_minutes:selectedCallMinutes})});
+  timePayBox.innerHTML=`<h3>Pay INR ${r.amount}</h3><div id="addonWait"></div>`;
+  await startRazorpayPayment(r, document.getElementById('addonWait'), async()=>{closeTimeModal();await loadRoom();await startMedia(callMode);});
 }
 async function endCall(){
   callActive=false;
@@ -354,3 +355,5 @@ function readLatestMessage(){
 loadRoom().catch(e=>{callState.textContent=e.message});
 </script>
 </body></html>
+
+

@@ -12,7 +12,7 @@ A user registers, browses consultants, pays INR 25 to unlock extra consultant de
 
 ## Technical Explanation
 
-The frontend is built with HTML, CSS, and JavaScript. The backend is built with FastAPI, SQLAlchemy, SQLite, JWT authentication, SMTP email OTP, simulated UPI/card payment verification, and Jitsi Meet iframe rooms. SQLite keeps the demo easy to run on a student laptop, while the API structure is similar to a production service marketplace.
+The frontend is built with HTML, CSS, and JavaScript. The backend is built with FastAPI, SQLAlchemy, SQLite/PostgreSQL, JWT authentication, SMTP email OTP, Razorpay payment verification, and Jitsi Meet iframe rooms. SQLite keeps the demo easy to run on a student laptop, while PostgreSQL plus Razorpay webhooks are ready for hosting.
 
 ## Tech Stack
 
@@ -21,7 +21,7 @@ The frontend is built with HTML, CSS, and JavaScript. The backend is built with 
 - Database: SQLite for local demo
 - Auth: JWT tokens, password hashing
 - OTP: Gmail SMTP with app password
-- Payments: UPI QR/card demo with backend auto-verification
+- Payments: Razorpay checkout with backend signature/webhook verification; UPI/card demo methods for local development
 - Video: Jitsi Meet iframe
 - Recommendation: keyword/category/rating/availability matching, optional OpenAI fallback
 
@@ -42,7 +42,7 @@ SQLite database
 
 External:
 Gmail SMTP -> OTP email
-UPI QR -> payment demo
+Razorpay -> payment checkout and verified webhooks
 Jitsi Meet -> video call room
 ```
 
@@ -78,15 +78,9 @@ Payment places:
 - Booking payment before booking appears in user dashboard
 - Extra call minutes when required
 
-Methods:
+Hosted payments use Razorpay checkout. The frontend opens Razorpay, then the backend verifies the signed callback at `/api/payments/razorpay/verify`. In production, Razorpay also calls `/api/payments/razorpay/webhook`, and the backend verifies `X-Razorpay-Signature` before marking a payment paid.
 
-- UPI / QR with UPI ID and Open UPI app link
-- Debit card demo form
-- Credit card demo form
-
-The app does not ask for manual UTR and does not show an "I have paid" button. It creates a backend payment and waits until `/api/payments/{id}/status` becomes `paid`.
-
-Production limitation: a static UPI QR cannot truly verify bank payment automatically without a payment gateway or bank webhook. Production should use Razorpay, PhonePe, Cashfree, Stripe, or a bank API/webhook. For this student demo, the backend simulates automatic verification after a short delay.
+Local development still supports UPI QR, debit card demo, and credit card demo from selected screens. Demo methods are blocked automatically when `ENVIRONMENT=production`.
 
 ## Backend Modules
 
@@ -94,7 +88,7 @@ Production limitation: a static UPI QR cannot truly verify bank payment automati
 - `routers/auth.py`: user registration, login, OTP send, consultant registration
 - `routers/experts.py`: expert listing, detail, paid details, reviews
 - `routers/bookings.py`: booking creation
-- `routers/payments.py`: checkout, status polling, simulated verification
+- `routers/payments.py`: checkout, Razorpay signature verification, Razorpay/Stripe webhooks, refunds, status polling
 - `routers/me.py`: user profile, bookings, payments, notifications, room, messages
 - `routers/expert_portal.py`: consultant dashboard, profile, bookings, earnings, availability
 - `routers/ai.py`: recommendation/matching assistant
@@ -153,6 +147,8 @@ oncons-pro/
 - `GET /api/experts/{id}/paid-details`
 - `POST /api/bookings`
 - `POST /api/payments/checkout`
+- `POST /api/payments/razorpay/verify`
+- `POST /api/payments/razorpay/webhook`
 - `GET /api/payments/{id}/status`
 - `GET /api/me/bookings`
 - `GET /api/me/notifications`
@@ -182,14 +178,15 @@ Use a Gmail App Password, not the normal Gmail password. Never commit `.env`.
 Backend:
 
 ```powershell
-cd H:\oncons-pro-fixed-run\oncons-pro\backend
-C:\Users\harah\Documents\Codex\2026-05-22\files-mentioned-by-the-user-oncons\oncons-pro\backend\.venv312\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd H:\oncons-pro-fixed-run\oncons-pro-fixed-run\oncons-pro\backend
+.\.venv312\Scripts\python.exe seed.py
+.\.venv312\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Frontend:
 
 ```powershell
-cd H:\oncons-pro-fixed-run\oncons-pro\frontend
+cd H:\oncons-pro-fixed-run\oncons-pro-fixed-run\oncons-pro\frontend
 py -m http.server 5500 --bind 0.0.0.0
 ```
 
@@ -197,6 +194,20 @@ Open:
 
 ```text
 http://localhost:5500/index.html
+```
+
+Local admin login:
+
+```text
+URL: http://localhost:5500/login.html?role=admin
+Email: admin@oncons.com
+Password: Admin@12345
+```
+
+For hosting, set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in Render. Set the Razorpay webhook URL to:
+
+```text
+https://YOUR-RENDER-API.onrender.com/api/payments/razorpay/webhook
 ```
 
 Two laptops:
@@ -298,5 +309,4 @@ Good viva points:
 - Static UPI QR payment is simulated for demo; production needs payment gateway webhook.
 - Video calling uses a shared Jitsi room token so both laptops join the same room.
 - The project demonstrates full-stack CRUD, auth, payments, notifications, recommendation logic, and database design.
-#   O n c o n s  
- 
+# Oncons

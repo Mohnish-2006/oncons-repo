@@ -6,7 +6,7 @@
 </head><body data-no-chrome="true">
 
 <div class="register-page">
-  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home">← Home</button>
+  <button class="auth-back" onclick="location.href='/index.html'" aria-label="Back to home"><- Home</button>
   <div class="register-shell">
     <section class="register-panel">
       <div class="login-brand" style="text-align:left;margin-bottom:24px">On<span>Cons</span></div>
@@ -28,7 +28,7 @@
       <div class="form-heading"><h2>User Registration</h2><p>Create your learner/customer account.</p></div>
       <label>Name<input required name="name" autocomplete="name"></label>
       <label>Email<input required type="email" name="email" autocomplete="email"></label>
-      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <label>Password<input required type="password" minlength="10" name="password" autocomplete="new-password" title="Use at least 10 characters with uppercase, lowercase, number, and symbol."></label>
       <div class="otp-row">
         <button id="sendUserOtpBtn" class="btn btn-ghost" type="button">Send OTP</button>
         <label>OTP<input required name="otp" placeholder="6 digit code"></label>
@@ -44,7 +44,7 @@
         <label>Phone<input required name="phone" autocomplete="tel"></label>
       </div>
       <label>Email<input required type="email" name="email" autocomplete="email"></label>
-      <label>Password<input required type="password" minlength="8" name="password" autocomplete="new-password"></label>
+      <label>Password<input required type="password" minlength="10" name="password" autocomplete="new-password" title="Use at least 10 characters with uppercase, lowercase, number, and symbol."></label>
       <div class="grid-2">
         <label>Domain<select required name="category" id="cat"></select></label>
         <label>Consultation fee<input required type="number" min="0" name="fee" value="499"></label>
@@ -77,6 +77,7 @@
   </div>
 </div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 const CATS=['Doctor','Psychiatrist','Therapist','Lawyer','Financial Advisor','Plumber','Mechanic','Electrician','Tutor','Fitness Trainer','Nutritionist','Astrologer','Career Coach','Relationship Counselor','Interior Designer','Architect','Freelance Consultant'];
@@ -124,7 +125,7 @@ async function fileData(input){
 }
 async function regUser(e){
   e.preventDefault(); const f=Object.fromEntries(new FormData(e.target)); f.role='user';
-  try{const r=await api('/auth/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/dashboard/index.html'}
+  try{const r=await api('/auth/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token,r.refresh_token);userSet(r.user);location.href='/dashboard/index.html'}
   catch(err){els.userMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
 }
 async function sendUserOtp(){
@@ -152,8 +153,10 @@ async function regConsultant(e){
   f.certificate_url=await fileData(els.certificate);
   if(CERT_REQUIRED.has(f.category) && !f.certificate_url){els.consultMsg.innerHTML='<div class="alert alert-error">Certificate proof is required for '+f.category+'.</div>';return}
   els.consultMsg.innerHTML='<div class="alert alert-ok">Verifying email OTP and documents...</div>';
-  try{const r=await api('/auth/consultant/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token);userSet(r.user);location.href='/verification-success.html?next=/expert/dashboard.html'}
+  try{const r=await api('/auth/consultant/register',{method:'POST',body:JSON.stringify(f)});tokenSet(r.access_token,r.refresh_token);userSet(r.user);location.href='/verification-success.html?next=/expert/dashboard.html'}
   catch(err){els.consultMsg.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
 }
 </script>
 </body></html>
+
+

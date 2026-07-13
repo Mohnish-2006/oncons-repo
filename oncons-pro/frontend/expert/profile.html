@@ -27,10 +27,10 @@
 </section>
 </main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("expert");</script>
 <script>
-async function fileData(input){const f=input.files&&input.files[0];if(!f)return '';return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
 async function load(){
   const me=await api('/expert/me');
   n.value=me.name||''; ph.value=me.phone||''; c.value=me.category||''; y.value=me.years_experience||''; fe.value=me.fee||''; b.value=me.bio||''; portfolio.value=me.portfolio_url||'';
@@ -47,10 +47,12 @@ load();
 async function sv(e){
   e.preventDefault();
   const payload=Object.fromEntries(new FormData(e.target));
-  const pic=await fileData(photo);
+  const pic=await uploadFile(photo);
   if(pic){payload.profile_photo_url=pic;payload.avatar_url=pic}
   try{await api('/expert/me',{method:'PATCH',body:JSON.stringify(payload)});m.innerHTML='<div class="alert alert-ok">Saved.</div>';load()}
-  catch(err){m.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}
+  catch(err){m.innerHTML='<div class="alert alert-error">'+escapeHtml(err.message)+'</div>'}
 }
 </script>
 </body></html>
+
+

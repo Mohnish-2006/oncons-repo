@@ -12,6 +12,7 @@
 <section class="booking-section"><div class="section-line"><div><p class="section-tag">Past consultations</p><h2>History</h2></div></div><div id="historyRows" class="booking-list"></div></section>
 </main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("");</script>
 <script>
@@ -23,18 +24,36 @@ function bookingModeAction(x){
   const label=mode==='audio'?'Join audio room':mode==='chat'?'Open chat':'Join video room';
   return `<a class="btn btn-primary" href="${x.meeting_url}">${label}</a>`;
 }
-(async()=>{
+function manageActions(x){
+  if(!activeStatuses.includes(x.status)) return '';
+  return `<button class="btn btn-ghost" onclick="rescheduleBooking(${x.id})">Reschedule</button><button class="btn btn-ghost" onclick="cancelBooking(${x.id})">Cancel</button>`;
+}
+async function cancelBooking(id){
+  if(!confirm('Cancel this booking?')) return;
+  await api('/me/bookings/'+id+'/cancel',{method:'POST',body:JSON.stringify({reason:'Cancelled from dashboard'})});
+  loadBookings();
+}
+async function rescheduleBooking(id){
+  const next=prompt('Enter new date/time as YYYY-MM-DDTHH:MM');
+  if(!next) return;
+  await api('/me/bookings/'+id+'/reschedule',{method:'PATCH',body:JSON.stringify({scheduled_at:next})});
+  loadBookings();
+}
+async function loadBookings(){
   const b=await api('/me/bookings');
   const upcoming=b.filter(x=>activeStatuses.includes(x.status));
   const history=b.filter(x=>['completed','cancelled'].includes(x.status));
   upcomingRows.innerHTML=upcoming.length?upcoming.map(x=>`<div class="consult-card">
     <div><strong>${x.expert_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
-    <div class="action-row">${bookingModeAction(x)}</div>
+    <div class="action-row">${bookingModeAction(x)}${manageActions(x)}</div>
   </div>`).join(''):'<div class="empty-state">No bookings yet. Book a consultant to unlock chat, call, and video room.</div>';
   historyRows.innerHTML=history.length?history.map(x=>`<div class="consult-card history-card">
     <div><strong>${x.expert_name}</strong><p>${new Date(x.scheduled_at).toLocaleString()} - ${x.mode||'video'} - ${x.status} - INR ${x.fee}</p></div>
     <span class="status-pill ${x.status==='cancelled'?'rejected':''}">${x.status}</span>
   </div>`).join(''):'<div class="empty-state">Completed and rejected bookings will appear here.</div>';
-})();
+}
+loadBookings().catch(err=>{upcomingRows.innerHTML='<div class="alert alert-error">'+err.message+'</div>'});
 </script>
 </body></html>
+
+

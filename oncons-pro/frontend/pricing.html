@@ -21,16 +21,19 @@
 <div id="payBox" class="card pay-box hidden"></div>
 </div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 async function subscribe(plan){
   if(!userGet()){location.href='/register.html';return}
   try{
-    const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan,provider:'upi'})});
+    const r=await api('/payments/checkout',{method:'POST',body:JSON.stringify({plan,provider:'razorpay'})});
     payBox.classList.remove('hidden');
-    payBox.innerHTML=`<h2>Pay with UPI / QR</h2><p>Amount: INR ${r.amount}</p>${paymentQrHtml(r)}<div id="paymentWait"></div>`;
-    waitForPayment(r.payment_id, document.getElementById('paymentWait'), ()=>location.href='/dashboard/subscription.html');
+    payBox.innerHTML=`<h2>Secure Razorpay payment</h2><p>Amount: INR ${r.amount}</p><div id="paymentWait"></div>`;
+    await startRazorpayPayment(r, document.getElementById('paymentWait'), ()=>location.href='/dashboard/subscription.html');
   }catch(e){alert(e.message)}
 }
 </script>
 </body></html>
+
+

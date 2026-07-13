@@ -20,6 +20,28 @@ class User(Base):
     plan=Column(String, default="free")  # free|pro|premium
     created_at=Column(DateTime, default=datetime.utcnow)
 
+class UserSession(Base):
+    __tablename__="sessions"
+    id=Column(Integer, primary_key=True)
+    user_id=Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    refresh_token_hash=Column(String, unique=True, index=True, nullable=False)
+    device_id=Column(String, index=True)
+    user_agent=Column(String)
+    ip_address=Column(String)
+    revoked=Column(Boolean, default=False)
+    expires_at=Column(DateTime, nullable=False)
+    created_at=Column(DateTime, default=datetime.utcnow)
+    last_seen_at=Column(DateTime, default=datetime.utcnow)
+
+class PasswordResetToken(Base):
+    __tablename__="password_reset_tokens"
+    id=Column(Integer, primary_key=True)
+    user_id=Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    token_hash=Column(String, unique=True, index=True, nullable=False)
+    used=Column(Boolean, default=False)
+    expires_at=Column(DateTime, nullable=False)
+    created_at=Column(DateTime, default=datetime.utcnow)
+
 class Category(Base):
     __tablename__="categories"
     id=Column(Integer, primary_key=True)
@@ -87,7 +109,22 @@ class Payment(Base):
     provider_ref=Column(String)
     status=Column(String, default="initiated")
     description=Column(String)
+    refunded_amount=Column(Float, default=0)
+    refund_ref=Column(String)
     created_at=Column(DateTime, default=datetime.utcnow)
+
+class Invoice(Base):
+    __tablename__="invoices"
+    id=Column(Integer, primary_key=True)
+    user_id=Column(Integer, ForeignKey("users.id"), index=True)
+    booking_id=Column(Integer, ForeignKey("bookings.id"), nullable=True)
+    payment_id=Column(Integer, ForeignKey("payments.id"), nullable=True)
+    invoice_number=Column(String, unique=True, index=True)
+    amount=Column(Float)
+    currency=Column(String, default="INR")
+    status=Column(String, default="issued")
+    pdf_path=Column(String)
+    issued_at=Column(DateTime, default=datetime.utcnow)
 
 class OTPVerification(Base):
     __tablename__="otp_verifications"
@@ -164,6 +201,35 @@ class SupportTicket(Base):
     body=Column(Text)
     status=Column(String, default="open")
     created_at=Column(DateTime, default=datetime.utcnow)
+
+class Complaint(Base):
+    __tablename__="complaints"
+    id=Column(Integer, primary_key=True)
+    user_id=Column(Integer, ForeignKey("users.id"), nullable=True)
+    email=Column(String)
+    subject=Column(String)
+    body=Column(Text)
+    priority=Column(String, default="normal")
+    status=Column(String, default="open")
+    resolution=Column(Text)
+    created_at=Column(DateTime, default=datetime.utcnow)
+
+class Report(Base):
+    __tablename__="reports"
+    id=Column(Integer, primary_key=True)
+    reporter_id=Column(Integer, ForeignKey("users.id"), nullable=True)
+    target_type=Column(String)
+    target_id=Column(Integer)
+    reason=Column(Text)
+    status=Column(String, default="open")
+    created_at=Column(DateTime, default=datetime.utcnow)
+
+class SystemSetting(Base):
+    __tablename__="system_settings"
+    id=Column(Integer, primary_key=True)
+    key=Column(String, unique=True, index=True, nullable=False)
+    value=Column(JSON)
+    updated_at=Column(DateTime, default=datetime.utcnow)
 
 class AdminLog(Base):
     __tablename__="admin_logs"

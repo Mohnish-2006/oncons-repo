@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Contact — OnCons</title>
+<title>Contact - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
 
@@ -15,10 +15,12 @@
   <div id="msg"></div>
 </form></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 async function send(e){e.preventDefault();const f=new FormData(e.target);const m=document.getElementById('msg');
-try{await api('/contact',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});m.innerHTML='<div class="alert alert-ok">Thanks — we\'ll be in touch.</div>';e.target.reset();}
+try{await api('/contact',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});m.innerHTML='<div class="alert alert-ok">Thanks - we\'ll be in touch.</div>';e.target.reset();}
 catch(err){m.innerHTML='<div class="alert alert-error">'+err.message+'</div>'}}
 </script>
 </body></html>
+

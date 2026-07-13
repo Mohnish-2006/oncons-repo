@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..db import get_db
-from ..models import User, Booking, Payment, Subscription, Expert, Notification, Message
+from ..models import User, Booking, Payment, Subscription, Expert, Notification, Message, Invoice, Complaint, Report
 from ..notifications import send_email
 from ..auth import current_user
-from ..schemas import ProfilePatch
+from ..schemas import ProfilePatch, ComplaintIn, ReportIn
 from ..config import settings
 from datetime import datetime
 import math
@@ -33,6 +33,12 @@ def my_bookings(u:User=Depends(current_user), db:Session=Depends(get_db)):
 def my_payments(u:User=Depends(current_user), db:Session=Depends(get_db)):
     return [{"id":p.id,"amount":p.amount,"status":p.status,"description":p.description or "Payment","created_at":p.created_at} for p in db.query(Payment).filter_by(user_id=u.id).all()]
 
+@router.get("/me/invoices")
+def my_invoices(u:User=Depends(current_user), db:Session=Depends(get_db)):
+    rows=db.query(Invoice).filter_by(user_id=u.id).order_by(Invoice.issued_at.desc()).all()
+    return [{"id":i.id,"invoice_number":i.invoice_number,"booking_id":i.booking_id,"payment_id":i.payment_id,
+             "amount":i.amount,"currency":i.currency,"status":i.status,"issued_at":i.issued_at} for i in rows]
+
 @router.get("/me/subscription")
 def my_sub(u:User=Depends(current_user), db:Session=Depends(get_db)):
     s=db.query(Subscription).filter_by(user_id=u.id,status="active").order_by(Subscription.id.desc()).first()
@@ -41,7 +47,70 @@ def my_sub(u:User=Depends(current_user), db:Session=Depends(get_db)):
 
 @router.get("/me/notifications")
 def my_notif(u:User=Depends(current_user), db:Session=Depends(get_db)):
-    return [{"id":n.id,"title":n.title,"body":n.body,"created_at":n.created_at} for n in db.query(Notification).filter_by(user_id=u.id).order_by(Notification.id.desc()).all()]
+    return [{"id":n.id,"title":n.title,"body":n.body,"read":n.read,"created_at":n.created_at} for n in db.query(Notification).filter_by(user_id=u.id).order_by(Notification.id.desc()).all()]
+
+@router.patch("/me/notifications/{notification_id}/read")
+def mark_notification_read(notification_id:int, u:User=Depends(current_user), db:Session=Depends(get_db)):
+    n=db.query(Notification).filter_by(id=notification_id,user_id=u.id).first()
+    if not n:
+        raise HTTPException(404,"Notification not found")
+    n.read=True
+    db.commit()
+    return {"ok":True}
+
+@router.post("/me/complaints")
+def create_complaint(payload:ComplaintIn, u:User=Depends(current_user), db:Session=Depends(get_db)):
+    c=Complaint(user_id=u.id,email=u.email,subject=payload.subject[:200],body=payload.body[:5000],priority=payload.priority[:40])
+    db.add(c)
+    db.add(Notification(user_id=u.id,title="Complaint submitted",body="Your complaint was received by OnCons support."))
+    db.commit(); db.refresh(c)
+    return {"ok":True,"id":c.id}
+
+@router.post("/me/reports")
+def create_report(payload:ReportIn, u:User=Depends(current_user), db:Session=Depends(get_db)):
+    r=Report(reporter_id=u.id,target_type=payload.target_type[:80],target_id=payload.target_id,reason=payload.reason[:5000])
+    db.add(r)
+    db.add(Notification(user_id=u.id,title="Report submitted",body="Your report was received by the admin team."))
+    db.commit(); db.refresh(r)
+    return {"ok":True,"id":r.id}
+
+@router.patch("/me/bookings/{booking_id}/reschedule")
+def reschedule_booking(booking_id:int, payload:dict, u:User=Depends(current_user), db:Session=Depends(get_db)):
+    booking=db.query(Booking).filter_by(id=booking_id,user_id=u.id).first()
+    if not booking:
+        raise HTTPException(404,"Booking not found")
+    if booking.status in ("completed","cancelled"):
+        raise HTTPException(400,"Completed or cancelled bookings cannot be rescheduled")
+    raw=payload.get("scheduled_at")
+    if not raw:
+        raise HTTPException(400,"scheduled_at is required")
+    try:
+        booking.scheduled_at=datetime.fromisoformat(str(raw).replace("Z","+00:00")).replace(tzinfo=None)
+    except ValueError:
+        raise HTTPException(400,"Invalid scheduled_at")
+    booking.status="requested" if booking.status=="confirmed" else booking.status
+    expert=db.query(Expert).get(booking.expert_id)
+    if expert and expert.user_id:
+        db.add(Notification(user_id=expert.user_id, title="Booking rescheduled", body=f"{u.name} requested a new time."))
+    db.add(Notification(user_id=u.id, title="Booking rescheduled", body="Your new consultation time was saved."))
+    db.commit()
+    return {"ok":True,"scheduled_at":booking.scheduled_at,"status":booking.status}
+
+@router.post("/me/bookings/{booking_id}/cancel")
+def cancel_booking(booking_id:int, payload:dict=None, u:User=Depends(current_user), db:Session=Depends(get_db)):
+    booking=db.query(Booking).filter_by(id=booking_id,user_id=u.id).first()
+    if not booking:
+        raise HTTPException(404,"Booking not found")
+    if booking.status in ("completed","cancelled"):
+        raise HTTPException(400,"Booking is already closed")
+    reason=(payload or {}).get("reason") if isinstance(payload, dict) else None
+    booking.status="cancelled"
+    expert=db.query(Expert).get(booking.expert_id)
+    if expert and expert.user_id:
+        db.add(Notification(user_id=expert.user_id, title="Booking cancelled", body=f"{u.name} cancelled a booking. {reason or ''}".strip()))
+    db.add(Notification(user_id=u.id, title="Booking cancelled", body="Your booking was cancelled. Refund review may apply if payment was captured."))
+    db.commit()
+    return {"ok":True,"status":booking.status}
 
 def _booking_for_user(db:Session, u:User, token:str):
     q=db.query(Booking,Expert,User).join(Expert,Expert.id==Booking.expert_id).join(User,User.id==Booking.user_id).filter(Booking.meeting_token==token)

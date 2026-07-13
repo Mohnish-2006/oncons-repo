@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from ..db import get_db
@@ -9,11 +9,32 @@ from ..auth import current_user
 router=APIRouter()
 
 @router.get("")
-def list_experts(category:Optional[str]=None, db:Session=Depends(get_db)):
-    q=db.query(Expert).filter(Expert.application_status=="approved", Expert.available==True)
+def list_experts(category:Optional[str]=None, search:Optional[str]=Query(None, alias="q"), max_price:Optional[float]=None,
+                 min_rating:Optional[float]=None, language:Optional[str]=None, available:Optional[bool]=None,
+                 page:int=1, limit:int=24, include_meta:bool=False,
+                 db:Session=Depends(get_db)):
+    page=max(page,1)
+    limit=min(max(limit,1),100)
+    query=db.query(Expert).filter(Expert.application_status=="approved", Expert.available==True)
     if category:
-        q=q.filter(Expert.category.ilike(category))
-    return [{"id":e.id,"name":e.name,"category":e.category,"bio":e.bio,"years_experience":e.years_experience,"fee":e.fee,"rating":e.rating,"verified":e.verified,"city":e.city,"languages":e.languages,"profile_photo_url":e.profile_photo_url} for e in q.all()]
+        query=query.filter(Expert.category.ilike(category))
+    if available is not None:
+        query=query.filter(Expert.available==available)
+    if max_price is not None:
+        query=query.filter(Expert.fee<=max_price)
+    if min_rating is not None:
+        query=query.filter(Expert.rating>=min_rating)
+    if language:
+        query=query.filter(Expert.languages.ilike(f"%{language}%"))
+    if search:
+        term=f"%{search}%"
+        query=query.filter((Expert.name.ilike(term)) | (Expert.category.ilike(term)) | (Expert.bio.ilike(term)) | (Expert.city.ilike(term)))
+    total=query.count()
+    rows=query.order_by(Expert.rating.desc(), Expert.id.desc()).offset((page-1)*limit).limit(limit).all()
+    data=[{"id":e.id,"name":e.name,"category":e.category,"bio":e.bio,"years_experience":e.years_experience,"fee":e.fee,"rating":e.rating,"verified":e.verified,"city":e.city,"languages":e.languages,"profile_photo_url":e.profile_photo_url} for e in rows]
+    if include_meta:
+        return {"items":data,"page":page,"limit":limit,"total":total}
+    return data
 
 @router.get("/{eid}")
 def get_expert(eid:int, db:Session=Depends(get_db)):

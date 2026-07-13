@@ -5,19 +5,31 @@
 <link rel="stylesheet" href="/assets/css/styles.css">
 </head><body>
 
-<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html" class="active">Payments</a><a href="/admin/reviews.html">Reviews</a></aside>
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/experts.html">Consultants</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html" class="active">Payments</a><a href="/admin/reviews.html">Reviews</a><a href="/admin/operations.html">Operations</a></aside>
 <main class="dash-main"><h1>Expert Payments Received</h1><p class="admin-kicker">Paid app transactions from users, tied back to consultant bookings where available.</p><div id="out" class="admin-panel">Loading...</div></main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("admin")||null;</script>
 <script>
 (async()=>{
   const d=await api('/admin/payments');
   out.innerHTML=d.length?`<div class="admin-list">${d.map(x=>`<div class="admin-payment">
-    <div><strong>${x.paid_by}</strong><br><small>${x.user_email} - ${x.description||'Payment'}</small></div>
-    <div><strong>${x.expert_name||'Platform'}</strong><br><small>${x.expert_email||'No expert linked'}</small></div>
-    <div><strong>INR ${x.amount}</strong><br><small>${x.provider||'manual'} - ${new Date(x.created_at).toLocaleString()}</small></div>
+    <div><strong>${escapeHtml(x.paid_by)}</strong><br><small>${escapeHtml(x.user_email)} - ${escapeHtml(x.description||'Payment')}</small></div>
+    <div><strong>${escapeHtml(x.expert_name||'Platform')}</strong><br><small>${escapeHtml(x.expert_email||'No expert linked')}</small></div>
+    <div><strong>INR ${x.amount}</strong><br><small>${escapeHtml(x.provider||'manual')} - refunded INR ${x.refunded_amount||0}</small></div>
+    <button class="btn btn-ghost" onclick="refundPayment(${x.id},${Number(x.amount||0)-Number(x.refunded_amount||0)})">Refund</button>
   </div>`).join('')}</div>`:'<div class="empty-state">No paid transactions yet.</div>';
 })();
+async function refundPayment(id,maxAmount){
+  if(maxAmount<=0){showToast('Already fully refunded','error');return}
+  const amount=Number(prompt('Refund amount',maxAmount));
+  if(!amount) return;
+  await api('/payments/'+id+'/refund',{method:'POST',body:JSON.stringify({amount})});
+  showToast('Refund recorded');
+  location.reload();
+}
 </script>
 </body></html>
+
+

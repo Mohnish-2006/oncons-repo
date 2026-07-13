@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Operations - OnCons</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+</head><body>
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/experts.html">Consultants</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html">Payments</a><a href="/admin/reviews.html">Reviews</a><a href="/admin/operations.html" class="active">Operations</a></aside>
+<main class="dash-main">
+  <section class="admin-hero"><div><h1>Platform Operations</h1><p class="admin-kicker">Health, complaints, reports, categories, settings, and audit trail.</p></div><div class="admin-pill" id="healthPill">Checking</div></section>
+  <div class="dash-grid" id="opsCards"></div>
+  <section class="admin-panel"><h2>Categories</h2><form class="action-row" onsubmit="createCategory(event)"><input name="name" placeholder="New category" required><input name="icon" placeholder="Icon label"><button class="btn btn-primary">Add</button></form><div id="categoriesBox" class="admin-list"></div></section>
+  <section class="admin-panel"><h2>Complaints</h2><div id="complaintsBox" class="admin-list"></div></section>
+  <section class="admin-panel"><h2>Reports</h2><div id="reportsBox" class="admin-list"></div></section>
+  <section class="admin-panel"><h2>System Settings</h2><form class="action-row" onsubmit="saveSetting(event)"><input name="key" placeholder="setting_key" required><input name="value" placeholder="value"><button class="btn btn-primary">Save</button></form><div id="settingsBox" class="admin-list"></div></section>
+  <section class="admin-panel"><h2>Audit Logs</h2><div id="logsBox" class="admin-list"></div></section>
+</main></div>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/shared.js"></script>
+<script>requireAuth("admin");</script>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function loadOps(){
+  const [health,cats,complaints,reports,settings,logs,backup]=await Promise.all([
+    api('/admin/platform-health'),api('/admin/categories'),api('/admin/complaints'),api('/admin/reports'),api('/admin/settings'),api('/admin/audit-logs'),api('/admin/database-backup')
+  ]);
+  healthPill.textContent=health.ok?'Healthy':'Needs setup';
+  opsCards.innerHTML=Object.entries(health.checks).map(([k,v])=>`<div class="dash-card"><div class="dash-card-val">${v?'OK':'Missing'}</div><div class="dash-card-lbl">${esc(k)}</div></div>`).join('')+
+    `<div class="dash-card"><div class="dash-card-val">${backup.exists===false?'No':'Ready'}</div><div class="dash-card-lbl">${esc(backup.strategy)}</div></div>`;
+  categoriesBox.innerHTML=cats.length?cats.map(x=>`<div class="admin-payment"><strong>${esc(x.name)}</strong><small>${esc(x.icon||'No icon')}</small><span>#${x.id}</span></div>`).join(''):'<div class="empty-state">No categories yet.</div>';
+  complaintsBox.innerHTML=complaints.length?complaints.map(x=>`<div class="admin-payment"><div><strong>${esc(x.subject)}</strong><br><small>${esc(x.email||'')}</small></div><div>${esc(x.priority)} / ${esc(x.status)}</div><button class="btn btn-ghost" onclick="closeComplaint(${x.id})">Close</button></div>`).join(''):'<div class="empty-state">No complaints.</div>';
+  reportsBox.innerHTML=reports.length?reports.map(x=>`<div class="admin-payment"><div><strong>${esc(x.target_type)} #${x.target_id}</strong><br><small>${esc(x.reason)}</small></div><div>${esc(x.status)}</div><button class="btn btn-ghost" onclick="closeReport(${x.id})">Close</button></div>`).join(''):'<div class="empty-state">No reports.</div>';
+  settingsBox.innerHTML=settings.length?settings.map(x=>`<div class="admin-payment"><strong>${esc(x.key)}</strong><small>${esc(JSON.stringify(x.value))}</small><span>${x.updated_at?new Date(x.updated_at).toLocaleString():''}</span></div>`).join(''):'<div class="empty-state">No settings saved.</div>';
+  logsBox.innerHTML=logs.length?logs.slice(0,25).map(x=>`<div class="admin-payment"><strong>${esc(x.action)}</strong><small>${esc(JSON.stringify(x.meta||{}))}</small><span>${new Date(x.created_at).toLocaleString()}</span></div>`).join(''):'<div class="empty-state">No audit logs.</div>';
+}
+async function createCategory(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));await api('/admin/categories',{method:'POST',body:JSON.stringify(f)});e.target.reset();loadOps()}
+async function saveSetting(e){e.preventDefault();const f=Object.fromEntries(new FormData(e.target));await api('/admin/settings/'+encodeURIComponent(f.key),{method:'PUT',body:JSON.stringify({value:f.value})});e.target.reset();loadOps()}
+async function closeComplaint(id){await api('/admin/complaints/'+id,{method:'PATCH',body:JSON.stringify({status:'closed',resolution:'Closed by admin'})});loadOps()}
+async function closeReport(id){await api('/admin/reports/'+id,{method:'PATCH',body:JSON.stringify({status:'closed'})});loadOps()}
+loadOps().catch(err=>{opsCards.innerHTML='<div class="alert alert-error">'+esc(err.message)+'</div>'});
+</script>
+</body></html>
+
+

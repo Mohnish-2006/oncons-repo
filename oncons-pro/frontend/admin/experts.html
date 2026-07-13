@@ -1,14 +1,17 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Experts — OnCons</title>
+<title>Experts - OnCons</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/styles.css">
 
 </head><body>
 
-<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html" class="">Overview</a><a href="/admin/users.html" class="">Users</a><a href="/admin/bookings.html" class="">Bookings</a><a href="/admin/payments.html" class="">Payments</a><a href="/admin/reviews.html" class="">Reviews</a></aside>
-<main class="dash-main"><h1>Experts</h1><div id='out'>Loading…</div></main></div>
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html" class="">Overview</a><a href="/admin/users.html" class="">Users</a><a href="/admin/experts.html" class="active">Consultants</a><a href="/admin/bookings.html" class="">Bookings</a><a href="/admin/payments.html" class="">Payments</a><a href="/admin/reviews.html" class="">Reviews</a><a href="/admin/operations.html" class="">Operations</a></aside>
+<main class="dash-main"><h1>Experts</h1><div id='out'>Loading...</div></main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("admin".replace("user",""))||null;</script><script>(async()=>{const d=await api('/admin/experts');out.innerHTML=d.length?`<table class='tbl'><thead><tr>${Object.keys(d[0]).map(k=>'<th>'+k+'</th>').join('')}</tr></thead><tbody>${d.map(r=>'<tr>'+Object.values(r).map(v=>'<td>'+(v??'')+'</td>').join('')+'</tr>').join('')}</tbody></table>`:'<p>No data.</p>'})();</script>
 </body></html>
+
+

@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="/assets/css/styles.css">
 </head><body>
 
-<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html" class="active">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html">Payments</a><a href="/admin/reviews.html">Reviews</a></aside>
+<div class="dash-layout"><aside class="dash-side"><a href="/admin/index.html" class="active">Overview</a><a href="/admin/users.html">Users</a><a href="/admin/experts.html">Consultants</a><a href="/admin/bookings.html">Bookings</a><a href="/admin/payments.html">Payments</a><a href="/admin/reviews.html">Reviews</a><a href="/admin/operations.html">Operations</a></aside>
 <main class="dash-main">
   <section class="admin-hero">
     <div><h1>Admin Command Center</h1><p class="admin-kicker">Bookings, earnings, users, and consultant operations.</p></div>
@@ -22,8 +22,13 @@
     <p class="admin-kicker">Shows the user who booked, the consultant, time, and room link.</p>
     <div id="upcoming" class="admin-list"></div>
   </section>
+  <section class="admin-panel">
+    <h2>Growth Analytics</h2>
+    <div id="analyticsBox" class="admin-list"></div>
+  </section>
 </main></div>
 
+<script src="/assets/js/config.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>requireAuth("admin")||null;</script>
 <script>
@@ -33,12 +38,20 @@
   e.textContent=s.experts;
   b.textContent=s.bookings||0;
   r.textContent='INR '+(s.earnings||0);
-  const rows=await api('/admin/upcoming-bookings');
+  const [rows,analytics]=await Promise.all([api('/admin/upcoming-bookings'),api('/admin/analytics')]);
   upcoming.innerHTML=rows.length?rows.map(x=>`<div class="admin-booking">
-    <div><strong>${x.customer_name}</strong><br><small>${x.customer_email}</small></div>
-    <div><strong>${x.expert_name}</strong><br><small>${x.expert_category||'Consultant'} - ${x.expert_email||'No expert email'}</small></div>
+    <div><strong>${escapeHtml(x.customer_name)}</strong><br><small>${escapeHtml(x.customer_email)}</small></div>
+    <div><strong>${escapeHtml(x.expert_name)}</strong><br><small>${escapeHtml(x.expert_category||'Consultant')} - ${escapeHtml(x.expert_email||'No expert email')}</small></div>
     <div><strong>${new Date(x.scheduled_at).toLocaleString()}</strong><br><small>${x.status} - INR ${x.fee}</small></div>
   </div>`).join(''):'<div class="empty-state">No upcoming paid bookings yet.</div>';
+  analyticsBox.innerHTML=[
+    `<div class="admin-payment"><strong>Total revenue</strong><span>INR ${analytics.totals.revenue}</span></div>`,
+    `<div class="admin-payment"><strong>Cancellations</strong><span>${analytics.totals.cancellations}</span></div>`,
+    `<div class="admin-payment"><strong>Popular categories</strong><small>${analytics.popular_categories.map(x=>escapeHtml(x.category)+' ('+x.bookings+')').join(', ')||'No data'}</small></div>`,
+    `<div class="admin-payment"><strong>Top consultants</strong><small>${analytics.top_consultants.map(x=>escapeHtml(x.name)+' ('+x.bookings+')').join(', ')||'No data'}</small></div>`
+  ].join('');
 })();
 </script>
 </body></html>
+
+

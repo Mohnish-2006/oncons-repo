@@ -310,3 +310,6 @@ Good viva points:
 - Video calling uses a shared Jitsi room token so both laptops join the same room.
 - The project demonstrates full-stack CRUD, auth, payments, notifications, recommendation logic, and database design.
 # Oncons
+## Project Updates
+
+- Improved project documentation.
